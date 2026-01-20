@@ -19,17 +19,14 @@ export default function SignUp() {
   const [localError, setLocalError] = useState('')
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { isLoading, error, isAuthenticated } = useAppSelector((state) => state.auth)
+  const { isLoading, error } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     dispatch(clearError())
   }, [dispatch])
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard')
-    }
-  }, [isAuthenticated, navigate])
+  // Remove the useEffect that redirects on authentication
+  // After signup, we'll redirect to signin manually
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,7 +43,12 @@ export default function SignUp() {
       return
     }
 
-    await dispatch(signUp({ name, email, password }))
+    const result = await dispatch(signUp({ name, email, password }))
+    
+    // If signup was successful, redirect to signin page
+    if (signUp.fulfilled.match(result)) {
+      navigate('/signin')
+    }
   }
 
   const displayError = localError || error

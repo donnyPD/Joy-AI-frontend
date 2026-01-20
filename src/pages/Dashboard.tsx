@@ -1,10 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import toast from 'react-hot-toast'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
-import { getMe } from '../features/auth/authApi'
-import { getOAuthUrl, disconnectJobber } from '../features/jobber/jobberApi'
 // TODO: Add your logo PNG file to src/assets/logo.png
 // import logo from '../assets/logo.png'
 const logo = '/logo.png' // Placeholder - update this path when logo is added
@@ -12,65 +8,9 @@ const logo = '/logo.png' // Placeholder - update this path when logo is added
 const PINK_COLOR = '#E91E63'
 
 export default function Dashboard() {
-  const [error, setError] = useState('')
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
-  const { isLoading: isConnecting } = useAppSelector((state) => state.jobber || { isLoading: false })
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('connected') === 'true') {
-      toast.success('Jobber account connected successfully!')
-      dispatch(getMe())
-      navigate('/dashboard', { replace: true })
-    }
-    const error = params.get('error')
-    if (error) {
-      toast.error(decodeURIComponent(error))
-      navigate('/dashboard', { replace: true })
-    }
-  }, [dispatch, navigate])
-
-  const handleConnectJobber = async () => {
-    setError('')
-    try {
-      const toastId = toast.loading('Opening Jobber authorization...')
-      const result = await dispatch(getOAuthUrl()).unwrap()
-      if (result?.authUrl) {
-        const newTab = window.open(result.authUrl, '_blank', 'noopener,noreferrer')
-        if (!newTab) {
-          toast.error('Popup blocked. Please allow popups and try again.')
-        } else {
-          toast.success('Jobber opened in new tab. Complete authorization there.')
-        }
-      } else {
-        setError('Failed to get OAuth URL. Please try again.')
-        toast.error('Failed to get OAuth URL. Please try again.')
-      }
-      toast.dismiss(toastId)
-    } catch (err: any) {
-      console.error('OAuth URL error:', err)
-      setError(err || 'Failed to connect Jobber account. Please try again.')
-      toast.error(err || 'Failed to connect Jobber account. Please try again.')
-      toast.dismiss()
-    }
-  }
-
-  const handleDisconnectJobber = async () => {
-    setError('')
-    try {
-      const toastId = toast.loading('Disconnecting Jobber...')
-      await dispatch(disconnectJobber()).unwrap()
-      await dispatch(getMe())
-      toast.success('Jobber disconnected. You can connect again now.')
-      toast.dismiss(toastId)
-    } catch (err: any) {
-      console.error('Disconnect error:', err)
-      toast.error(err || 'Failed to disconnect Jobber')
-      toast.dismiss()
-    }
-  }
 
   const handleSignOut = () => {
     dispatch(logout())
@@ -90,15 +30,15 @@ export default function Dashboard() {
                 <span className="text-xl font-bold text-gray-900">JOY AI</span>
               </div>
               <div className="hidden md:flex space-x-6">
-                <a href="#" className="text-gray-700 hover:text-joy-pink font-medium">
-                  Growth
-                </a>
-                <a href="#" className="text-gray-700 hover:text-joy-pink font-medium">
-                  Operations
-                </a>
-                <a href="#" className="text-gray-700 hover:text-joy-pink font-medium">
-                  Services
-                </a>
+                <Link to="/clients" className="text-gray-700 hover:text-joy-pink font-medium">
+                  Clients
+                </Link>
+                <Link to="/quotes" className="text-gray-700 hover:text-joy-pink font-medium">
+                  Quotes
+                </Link>
+                <Link to="/jobs" className="text-gray-700 hover:text-joy-pink font-medium">
+                  Jobs
+                </Link>
               </div>
             </div>
 
@@ -238,49 +178,6 @@ export default function Dashboard() {
             <p className="text-xs text-gray-500 mt-1">Total (All Months)</p>
           </div>
         </div>
-
-        {/* Connect Jobber Section */}
-        {!user?.jobberAccessToken && (
-          <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Connect Your Jobber Account</h2>
-              <p className="text-gray-600 mb-8">
-                Connect your Jobber account to start syncing your data and view your business performance
-              </p>
-
-              {error && (
-                <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded max-w-md mx-auto">
-                  {error}
-                </div>
-              )}
-
-              <button
-                onClick={handleConnectJobber}
-                disabled={isConnecting}
-                className="px-8 py-3 text-white font-medium rounded-lg hover:bg-joy-pink-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-joy-pink disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                style={{ backgroundColor: PINK_COLOR }}
-              >
-                {isConnecting ? 'Connecting...' : 'Connect my Jobber account'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!!user?.jobberAccessToken && (
-          <div className="mt-6 bg-white rounded-lg shadow-sm p-6 border border-gray-200 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Jobber Connected</h3>
-              <p className="text-sm text-gray-600">If you want to test again, disconnect and reconnect.</p>
-            </div>
-            <button
-              onClick={handleDisconnectJobber}
-              disabled={isConnecting}
-              className="px-5 py-2 font-semibold rounded-lg border border-gray-300 text-gray-800 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              Disconnect Jobber
-            </button>
-          </div>
-        )}
       </main>
     </div>
   )
