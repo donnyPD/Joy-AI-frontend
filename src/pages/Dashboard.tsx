@@ -5,8 +5,6 @@ import { logout } from '../features/auth/authSlice'
 // import logo from '../assets/logo.png'
 const logo = '/logo.png' // Placeholder - update this path when logo is added
 
-const PINK_COLOR = '#E91E63'
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
