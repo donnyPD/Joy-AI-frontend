@@ -37,6 +37,9 @@ export default function Dashboard() {
                 <Link to="/jobs" className="text-gray-700 hover:text-joy-pink font-medium">
                   Jobs
                 </Link>
+                <Link to="/operations" className="text-gray-700 hover:text-joy-pink font-medium">
+                  Operations
+                </Link>
               </div>
             </div>
 

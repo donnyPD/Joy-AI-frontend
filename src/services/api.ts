@@ -1,7 +1,8 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
+// Main API instance - baseURL already includes /api from env or default
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -9,7 +10,15 @@ export const api = axios.create({
   },
 })
 
-// Add auth token to requests
+// Separate API instance for auth endpoints without /api prefix
+export const authApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Add auth token to requests for main API
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken')
   console.log('📤 API Request:', {
@@ -60,6 +69,33 @@ api.interceptors.response.use(
         }
       } else {
         console.warn('⚠️ 401 on Jobber endpoint - likely missing Jobber connection')
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+// Add auth token interceptor for auth API (for /auth/me endpoint)
+authApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  config.headers.Accept = 'application/json'
+  config.headers['ngrok-skip-browser-warning'] = 'true'
+  return config
+})
+
+// Handle auth errors for auth API
+authApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('accessToken')
+      if (!window.location.pathname.includes('/signin')) {
+        setTimeout(() => {
+          window.location.href = '/signin'
+        }, 100)
       }
     }
     return Promise.reject(error)
