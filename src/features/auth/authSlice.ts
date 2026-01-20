@@ -53,12 +53,10 @@ const authSlice = createSlice({
         state.isLoading = true
         state.error = null
       })
-      .addCase(signUp.fulfilled, (state, action) => {
+      .addCase(signUp.fulfilled, (state) => {
+        // After successful signup, don't authenticate - user needs to sign in
         state.isLoading = false
-        state.token = action.payload.accessToken
-        state.user = action.payload.user
-        state.isAuthenticated = true
-        localStorage.setItem('accessToken', action.payload.accessToken)
+        // Don't set token, user, or isAuthenticated - user will sign in separately
       })
       .addCase(signUp.rejected, (state, action) => {
         state.isLoading = false

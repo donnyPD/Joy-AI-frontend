@@ -6,6 +6,9 @@ import SignIn from './pages/auth/SignIn'
 import SignUp from './pages/auth/SignUp'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
+import Clients from './pages/Clients'
+import Quotes from './pages/Quotes'
+import Jobs from './pages/Jobs'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -40,6 +43,18 @@ function App() {
       <Route
         path="/settings"
         element={isAuthenticated ? <Settings /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/clients"
+        element={isAuthenticated ? <Clients /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/quotes"
+        element={isAuthenticated ? <Quotes /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/jobs"
+        element={isAuthenticated ? <Jobs /> : <Navigate to="/signin" />}
       />
       <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/signin"} />} />
     </Routes>

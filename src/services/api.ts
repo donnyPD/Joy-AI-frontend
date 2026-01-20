@@ -12,8 +12,18 @@ export const api = axios.create({
 // Add auth token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken')
+  console.log('📤 API Request:', {
+    url: config.url,
+    method: config.method,
+    hasToken: !!token,
+    tokenLength: token?.length,
+    tokenStart: token ? `${token.substring(0, 20)}...` : 'none',
+  })
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  } else {
+    console.warn('⚠️ No access token found in localStorage for request:', config.url)
   }
   // Ensure we expect JSON response
   config.headers.Accept = 'application/json'
@@ -26,9 +36,31 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('🚨 API Error Interceptor:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+    })
+    
+    // Only logout on 401 if it's NOT a Jobber connection issue
+    // Jobber connection issues should return 400 (Bad Request), not 401
     if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken')
-      window.location.href = '/signin'
+      // Check if it's a Jobber-related endpoint
+      const isJobberEndpoint = error.config?.url?.includes('/jobber/')
+      
+      if (!isJobberEndpoint) {
+        console.warn('⚠️ 401 Unauthorized - Logging out user')
+        localStorage.removeItem('accessToken')
+        if (!window.location.pathname.includes('/signin')) {
+          setTimeout(() => {
+            window.location.href = '/signin'
+          }, 100)
+        }
+      } else {
+        console.warn('⚠️ 401 on Jobber endpoint - likely missing Jobber connection')
+      }
     }
     return Promise.reject(error)
   }

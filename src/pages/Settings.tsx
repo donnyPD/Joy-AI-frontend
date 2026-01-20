@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
@@ -14,12 +14,25 @@ export default function Settings() {
   const [success, setSuccess] = useState('')
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { user } = useAppSelector((state) => state.auth)
+  const { user, token, isLoading: isAuthLoading } = useAppSelector((state) => state.auth)
   const { isLoading: isConnecting } = useAppSelector((state) => state.jobber || { isLoading: false })
 
   const isConnected = !!user?.jobberAccessToken
+  const hasToken = !!(token || localStorage.getItem('accessToken'))
+  const [isUserChecking, setIsUserChecking] = useState(false)
+  const hasRequestedUser = useRef(false)
+  const isCheckingConnection = isAuthLoading || isUserChecking
 
   useEffect(() => {
+    if (hasToken && !hasRequestedUser.current) {
+      hasRequestedUser.current = true
+      setIsUserChecking(true)
+      dispatch(getMe())
+        .finally(() => {
+          setIsUserChecking(false)
+        })
+    }
+
     const params = new URLSearchParams(window.location.search)
     if (params.get('connected') === 'true') {
       toast.success('Jobber account connected successfully!')
@@ -128,6 +141,15 @@ export default function Settings() {
               <p className="text-gray-600">
                 Connect your Jobber account to sync clients, quotes, jobs, and more
               </p>
+              {isCheckingConnection && (
+                <div className="mt-3 flex items-center text-sm text-gray-500">
+                  <svg className="animate-spin h-4 w-4 mr-2 text-gray-400" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  Checking connection status...
+                </div>
+              )}
             </div>
             {isConnected && (
               <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
@@ -151,7 +173,7 @@ export default function Settings() {
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={handleConnectJobber}
-              disabled={isConnecting || isConnected}
+              disabled={isConnecting || isConnected || isCheckingConnection}
               className="px-6 py-3 text-white font-semibold rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
               style={{ 
                 backgroundColor: isConnected ? '#10B981' : PINK_COLOR,
@@ -168,7 +190,9 @@ export default function Settings() {
                 }
               }}
             >
-              {isConnecting
+              {isCheckingConnection
+                ? 'Checking connection...'
+                : isConnecting
                 ? 'Connecting...'
                 : isConnected
                 ? 'Jobber Account Connected'
@@ -178,7 +202,7 @@ export default function Settings() {
             {isConnected && (
               <button
                 onClick={handleDisconnectJobber}
-                disabled={isConnecting}
+                disabled={isConnecting || isCheckingConnection}
                 className="px-6 py-3 font-semibold rounded-xl border border-gray-300 text-gray-800 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 Disconnect Jobber
