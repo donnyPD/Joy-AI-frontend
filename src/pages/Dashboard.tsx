@@ -5,8 +5,6 @@ import { logout } from '../features/auth/authSlice'
 // import logo from '../assets/logo.png'
 const logo = '/logo.png' // Placeholder - update this path when logo is added
 
-const PINK_COLOR = '#E91E63'
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -38,6 +36,9 @@ export default function Dashboard() {
                 </Link>
                 <Link to="/jobs" className="text-gray-700 hover:text-joy-pink font-medium">
                   Jobs
+                </Link>
+                <Link to="/operations" className="text-gray-700 hover:text-joy-pink font-medium">
+                  Operations
                 </Link>
               </div>
             </div>

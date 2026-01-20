@@ -68,15 +68,6 @@ export default function Jobs() {
     )
   }
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
-
   const formatDateTime = (dateString: string | null) => {
     if (!dateString) return 'N/A'
     return new Date(dateString).toLocaleString('en-US', {
@@ -129,6 +120,9 @@ export default function Jobs() {
               </Link>
               <Link to="/jobs" className="text-gray-700 hover:text-gray-900 font-medium">
                 Jobs
+              </Link>
+              <Link to="/operations" className="text-gray-700 hover:text-gray-900 font-medium">
+                Operations
               </Link>
             </div>
             <div className="flex items-center">
