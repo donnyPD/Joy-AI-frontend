@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { signIn } from '../../features/auth/authApi'
+import { signIn, getMe } from '../../features/auth/authApi'
 import { clearError } from '../../features/auth/authSlice'
 // TODO: Add your logo PNG file to src/assets/logo.png
 // import logo from '../../assets/logo.png'
@@ -16,7 +16,7 @@ export default function SignIn() {
   const [rememberMe, setRememberMe] = useState(false)
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { isLoading, error, isAuthenticated } = useAppSelector((state) => state.auth)
+  const { isLoading, error, isAuthenticated, user } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     // Clear any previous errors
@@ -24,16 +24,24 @@ export default function SignIn() {
   }, [dispatch])
 
   useEffect(() => {
-    // Redirect if authenticated
-    if (isAuthenticated) {
+    // Redirect if authenticated, user data is loaded, and not currently loading
+    // This ensures we have full user data (including jobber token) before redirecting
+    if (isAuthenticated && user && !isLoading) {
       navigate('/dashboard')
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, user, isLoading, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     dispatch(clearError())
-    await dispatch(signIn({ email, password }))
+    
+    // Sign in first
+    const signInResult = await dispatch(signIn({ email, password }))
+    
+    // If sign in successful, immediately fetch full user data (including jobber token)
+    if (signIn.fulfilled.match(signInResult)) {
+      await dispatch(getMe())
+    }
   }
 
   return (

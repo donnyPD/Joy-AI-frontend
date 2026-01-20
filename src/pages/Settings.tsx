@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { logout } from '../features/auth/authSlice'
 import { getMe } from '../features/auth/authApi'
 import { getOAuthUrl, disconnectJobber } from '../features/jobber/jobberApi'
+import Navbar from '../components/Navbar'
 
 const PINK_COLOR = '#E91E63'
 const PINK_DARK = '#C2185B'
@@ -89,42 +89,9 @@ export default function Settings() {
     }
   }
 
-  const handleSignOut = () => {
-    dispatch(logout())
-    navigate('/signin')
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo and Navigation */}
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-2">
-                <span className="text-xl font-bold text-gray-900">JOY AI</span>
-              </div>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="text-gray-700 hover:text-gray-900 font-medium"
-              >
-                Dashboard
-              </button>
-            </div>
-
-            {/* Right Side Actions */}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleSignOut}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

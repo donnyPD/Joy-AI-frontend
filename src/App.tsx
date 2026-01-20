@@ -12,14 +12,14 @@ import Jobs from './pages/Jobs'
 
 function App() {
   const dispatch = useAppDispatch()
-  const { isAuthenticated, token } = useAppSelector((state) => state.auth)
+  const { isAuthenticated, token, user, isLoading } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
-    // Check if user is authenticated on mount
-    if (token && !isAuthenticated) {
+    // Check if user is authenticated on mount or if token exists but user data is missing
+    if (token && (!isAuthenticated || !user)) {
       dispatch(getMe())
     }
-  }, [dispatch, token, isAuthenticated])
+  }, [dispatch, token, isAuthenticated, user])
 
   useEffect(() => {
     const handleFocus = () => {

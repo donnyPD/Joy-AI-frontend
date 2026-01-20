@@ -1,33 +1,53 @@
 import { useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { logout } from '../features/auth/authSlice'
 import { fetchQuotes } from '../features/quotes/quotesApi'
+import Navbar from '../components/Navbar'
 
 const PINK_COLOR = '#E91E63'
 
 export default function Quotes() {
   const dispatch = useAppDispatch()
+  const location = useLocation()
   const { quotes, isLoading, error } = useAppSelector((state) => state.quotes)
-  const { user } = useAppSelector((state) => state.auth)
-  const hasRequested = useRef(false)
-  const navigate = useNavigate()
-
-  const handleSignOut = () => {
-    dispatch(logout())
-    navigate('/signin')
-  }
+  const { user, isLoading: isAuthLoading } = useAppSelector((state) => state.auth)
+  const lastFetchedPathRef = useRef<string>('')
 
   useEffect(() => {
-    if (user?.jobberAccessToken && !hasRequested.current && quotes.length === 0 && !isLoading) {
-      hasRequested.current = true
+    // Reset ref when leaving the route
+    if (location.pathname !== '/quotes') {
+      lastFetchedPathRef.current = ''
+      return
+    }
+
+    // Only fetch if we're on the quotes route, user has token, auth is loaded, and we haven't fetched for this visit
+    if (
+      location.pathname === '/quotes' &&
+      user?.jobberAccessToken &&
+      !isAuthLoading &&
+      lastFetchedPathRef.current !== location.pathname
+    ) {
+      lastFetchedPathRef.current = location.pathname
       dispatch(fetchQuotes({ first: 20 }))
     }
-  }, [dispatch, user?.jobberAccessToken, quotes.length, isLoading])
+  }, [dispatch, user?.jobberAccessToken, isAuthLoading, location.pathname])
+
+  // Show loading state while auth is being fetched
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+          <div className="text-lg text-gray-600">Loading...</div>
+        </div>
+      </div>
+    )
+  }
 
   if (!user?.jobberAccessToken) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-yellow-800 mb-2">Jobber Not Connected</h2>
@@ -99,35 +119,7 @@ export default function Quotes() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <Link to="/dashboard" className="text-xl font-bold text-gray-900">
-                JOY AI
-              </Link>
-              <Link to="/clients" className="text-gray-700 hover:text-gray-900 font-medium">
-                Clients
-              </Link>
-              <Link to="/quotes" className="text-gray-700 hover:text-gray-900 font-medium">
-                Quotes
-              </Link>
-              <Link to="/jobs" className="text-gray-700 hover:text-gray-900 font-medium">
-                Jobs
-              </Link>
-            </div>
-            <div className="flex items-center">
-              <button
-                onClick={handleSignOut}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-joy-pink border border-gray-300 rounded-lg hover:border-joy-pink transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Quotes</h1>
