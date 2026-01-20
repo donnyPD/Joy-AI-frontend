@@ -9,6 +9,9 @@ import Settings from './pages/Settings'
 import Clients from './pages/Clients'
 import Quotes from './pages/Quotes'
 import Jobs from './pages/Jobs'
+import Operations from './pages/Operations'
+import ManageTeam from './pages/ManageTeam'
+import TeamMemberDetail from './pages/TeamMemberDetail'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -55,6 +58,18 @@ function App() {
       <Route
         path="/jobs"
         element={isAuthenticated ? <Jobs /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/operations"
+        element={isAuthenticated ? <Operations /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/operations/team"
+        element={isAuthenticated ? <ManageTeam /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/operations/users/:id"
+        element={isAuthenticated ? <TeamMemberDetail /> : <Navigate to="/signin" />}
       />
       <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/signin"} />} />
     </Routes>

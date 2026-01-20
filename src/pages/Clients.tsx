@@ -114,6 +114,9 @@ export default function Clients() {
               <Link to="/jobs" className="text-gray-700 hover:text-gray-900 font-medium">
                 Jobs
               </Link>
+              <Link to="/operations" className="text-gray-700 hover:text-gray-900 font-medium">
+                Operations
+              </Link>
             </div>
             <div className="flex items-center">
               <button

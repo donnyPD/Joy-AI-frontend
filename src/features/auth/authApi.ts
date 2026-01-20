@@ -1,5 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
-import api from '../../services/api'
+import { authApi } from '../../services/api'
 
 interface SignUpData {
   email: string
@@ -25,7 +25,7 @@ export const signUp = createAsyncThunk<AuthResponse, SignUpData, { rejectValue: 
   'auth/signUp',
   async (data, { rejectWithValue }) => {
     try {
-      const response = await api.post<AuthResponse>('/auth/signup', data)
+      const response = await authApi.post<AuthResponse>('/auth/signup', data)
       return response.data
     } catch (error: any) {
       return rejectWithValue(
@@ -39,7 +39,7 @@ export const signIn = createAsyncThunk<AuthResponse, SignInData, { rejectValue: 
   'auth/signIn',
   async (data, { rejectWithValue }) => {
     try {
-      const response = await api.post<AuthResponse>('/auth/signin', data)
+      const response = await authApi.post<AuthResponse>('/auth/signin', data)
       return response.data
     } catch (error: any) {
       return rejectWithValue(
@@ -53,7 +53,7 @@ export const getMe = createAsyncThunk<any, void, { rejectValue: string }>(
   'auth/getMe',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/auth/me')
+      const response = await authApi.get('/auth/me')
       return response.data
     } catch (error: any) {
       return rejectWithValue('Failed to fetch user data')
