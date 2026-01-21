@@ -5,7 +5,6 @@ import { signIn, getMe } from '../../features/auth/authApi'
 import { clearError } from '../../features/auth/authSlice'
 
 const PINK_COLOR = '#E80379'
-const PINK_DARK = '#EA1059'
 const ERROR_COLOR = '#DE2928'
 
 export default function SignIn() {
@@ -166,7 +165,7 @@ export default function SignIn() {
                   value={email}
                   onChange={handleEmailChange}
                   onFocus={() => handleFieldFocus('email')}
-                  onBlur={(e) => {
+                  onBlur={() => {
                     handleEmailBlur()
                     handleFieldBlur('email')
                   }}

@@ -21,7 +21,7 @@ import Metrics from './pages/Metrics'
 
 function App() {
   const dispatch = useAppDispatch()
-  const { isAuthenticated, token, user, isLoading } = useAppSelector((state) => state.auth)
+  const { isAuthenticated, token, user } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     // Check if user is authenticated on mount or if token exists but user data is missing

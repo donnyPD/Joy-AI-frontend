@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '../store/hooks'
 
 const PINK_COLOR = '#E80379'
-const PINK_DARK = '#EA1059'
 
 interface Plan {
   id: string
