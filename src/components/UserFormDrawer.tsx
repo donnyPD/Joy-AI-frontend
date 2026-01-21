@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTeamMember, useCreateTeamMember, useUpdateTeamMember } from '../features/team-members/teamMembersApi'
 import type { CreateTeamMemberData } from '../features/team-members/teamMembersApi'
 import { useTeamMemberTypes, useTeamMemberStatuses } from '../features/team-member-options/teamMemberOptionsApi'
@@ -54,8 +54,14 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
   const [statusIsOther, setStatusIsOther] = useState(false)
   const [customType, setCustomType] = useState('')
   const [customStatus, setCustomStatus] = useState('')
+  const hasInitialized = useRef(false)
 
   useEffect(() => {
+    if (!open) {
+      hasInitialized.current = false
+      return
+    }
+
     if (member && mode === 'edit') {
       // Check if type is a custom value (not in active types)
       const activeTypeNames = types.filter((t) => t.isActive).map((t) => t.name)
@@ -96,7 +102,11 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
       if (member.photo) {
         setPhotoPreview(member.photo)
       }
+      hasInitialized.current = true
     } else if (mode === 'add') {
+      if (hasInitialized.current) {
+        return
+      }
       // Set default values from API if available
       const defaultType = types.find((t) => t.isActive && t.name === 'W2')?.name || (types.find((t) => t.isActive)?.name || 'W2')
       const defaultStatus = statuses.find((s) => s.isActive && s.name === 'Active')?.name || (statuses.find((s) => s.isActive)?.name || 'Active')
@@ -129,6 +139,7 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
         starOfMonth: false,
       })
       setPhotoPreview(null)
+      hasInitialized.current = true
     }
     setErrors({})
   }, [member, mode, open, types, statuses])

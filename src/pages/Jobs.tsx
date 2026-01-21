@@ -1,70 +1,86 @@
 import { useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { logout } from '../features/auth/authSlice'
 import { fetchJobs } from '../features/jobs/jobsApi'
+import SidebarLayout from '../components/SidebarLayout'
 
 const PINK_COLOR = '#E91E63'
 
 export default function Jobs() {
   const dispatch = useAppDispatch()
+  const location = useLocation()
   const { jobs, isLoading, error } = useAppSelector((state) => state.jobs)
-  const { user } = useAppSelector((state) => state.auth)
-  const hasRequested = useRef(false)
-  const navigate = useNavigate()
-
-  const handleSignOut = () => {
-    dispatch(logout())
-    navigate('/signin')
-  }
+  const { user, isLoading: isAuthLoading } = useAppSelector((state) => state.auth)
+  const lastFetchedPathRef = useRef<string>('')
 
   useEffect(() => {
-    if (user?.jobberAccessToken && !hasRequested.current && jobs.length === 0 && !isLoading) {
-      hasRequested.current = true
+    // Reset ref when leaving the route
+    if (location.pathname !== '/jobs') {
+      lastFetchedPathRef.current = ''
+      return
+    }
+
+    // Only fetch if we're on the jobs route, user has token, auth is loaded, and we haven't fetched for this visit
+    if (
+      location.pathname === '/jobs' &&
+      user?.jobberAccessToken &&
+      !isAuthLoading &&
+      lastFetchedPathRef.current !== location.pathname
+    ) {
+      lastFetchedPathRef.current = location.pathname
       dispatch(fetchJobs({ first: 20 }))
     }
-  }, [dispatch, user?.jobberAccessToken, jobs.length, isLoading])
+  }, [dispatch, user?.jobberAccessToken, isAuthLoading, location.pathname])
+
+  // Show loading state while auth is being fetched
+  if (isAuthLoading) {
+    return (
+      <SidebarLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
+          <div className="text-lg text-gray-600">Loading...</div>
+        </div>
+      </SidebarLayout>
+    )
+  }
 
   if (!user?.jobberAccessToken) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-yellow-800 mb-2">Jobber Not Connected</h2>
-            <p className="text-yellow-700 mb-4">
-              Please connect your Jobber account in Settings to view jobs.
-            </p>
-            <Link
-              to="/settings"
-              className="inline-block px-4 py-2 text-white font-medium rounded-lg"
-              style={{ backgroundColor: PINK_COLOR }}
-            >
-              Go to Settings
-            </Link>
-          </div>
+      <SidebarLayout>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-yellow-800 mb-2">Jobber Not Connected</h2>
+          <p className="text-yellow-700 mb-4">
+            Please connect your Jobber account in Integrations to view jobs.
+          </p>
+          <Link
+            to="/intergation"
+            className="inline-block px-4 py-2 text-white font-medium rounded-lg"
+            style={{ backgroundColor: PINK_COLOR }}
+          >
+            Go to Integrations
+          </Link>
         </div>
-      </div>
+      </SidebarLayout>
     )
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg text-gray-600">Loading jobs...</div>
-      </div>
+      <SidebarLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
+          <div className="text-lg text-gray-600">Loading jobs...</div>
+        </div>
+      </SidebarLayout>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Jobs</h2>
-            <p className="text-red-700">{error}</p>
-          </div>
+      <SidebarLayout>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Jobs</h2>
+          <p className="text-red-700">{error}</p>
         </div>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -103,64 +119,8 @@ export default function Jobs() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <Link to="/dashboard" className="text-xl font-bold text-gray-900">
-                JOY AI
-              </Link>
-              <Link to="/clients" className="text-gray-700 hover:text-gray-900 font-medium">
-                Clients
-              </Link>
-              <Link to="/quotes" className="text-gray-700 hover:text-gray-900 font-medium">
-                Quotes
-              </Link>
-              <Link to="/jobs" className="text-gray-700 hover:text-gray-900 font-medium">
-                Jobs
-              </Link>
-              <Link to="/operations" className="text-gray-700 hover:text-gray-900 font-medium">
-                Operations
-              </Link>
-              <Link to="/services" className="text-gray-700 hover:text-gray-900 font-medium">
-                Services
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link
-                to="/settings"
-                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-                title="Settings"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-joy-pink border border-gray-300 rounded-lg hover:border-joy-pink transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <SidebarLayout>
+      <div className="bg-white rounded-2xl border border-[#EFEFEF] shadow-sm px-6 sm:px-8 py-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Jobs</h1>
 
         {jobs.length === 0 ? (
@@ -230,6 +190,6 @@ export default function Jobs() {
           </div>
         )}
       </div>
-    </div>
+    </SidebarLayout>
   )
 }
