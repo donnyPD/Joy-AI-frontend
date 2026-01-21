@@ -1,18 +1,14 @@
 import { useAppSelector } from '../store/hooks'
-import Navbar from '../components/Navbar'
+import SidebarLayout from '../components/SidebarLayout'
 
 export default function Dashboard() {
   const { user } = useAppSelector((state) => state.auth)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Page Header */}
+    <SidebarLayout>
+      <main className="bg-white rounded-2xl border border-[#EFEFEF] shadow-sm px-6 sm:px-8 py-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">JOY 2026</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Overview</h1>
           <p className="text-gray-600 mt-1">Business Performance Dashboard - {user?.name || 'User'}</p>
         </div>
 
@@ -97,6 +93,6 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
-    </div>
+    </SidebarLayout>
   )
 }

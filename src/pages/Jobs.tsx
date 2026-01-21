@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { fetchJobs } from '../features/jobs/jobsApi'
-import Navbar from '../components/Navbar'
+import SidebarLayout from '../components/SidebarLayout'
 
 const PINK_COLOR = '#E91E63'
 
@@ -35,56 +35,52 @@ export default function Jobs() {
   // Show loading state while auth is being fetched
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <SidebarLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
           <div className="text-lg text-gray-600">Loading...</div>
         </div>
-      </div>
+      </SidebarLayout>
     )
   }
 
   if (!user?.jobberAccessToken) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-yellow-800 mb-2">Jobber Not Connected</h2>
-            <p className="text-yellow-700 mb-4">
-              Please connect your Jobber account in Settings to view jobs.
-            </p>
-            <Link
-              to="/settings"
-              className="inline-block px-4 py-2 text-white font-medium rounded-lg"
-              style={{ backgroundColor: PINK_COLOR }}
-            >
-              Go to Settings
-            </Link>
-          </div>
+      <SidebarLayout>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-yellow-800 mb-2">Jobber Not Connected</h2>
+          <p className="text-yellow-700 mb-4">
+            Please connect your Jobber account in Integrations to view jobs.
+          </p>
+          <Link
+            to="/intergation"
+            className="inline-block px-4 py-2 text-white font-medium rounded-lg"
+            style={{ backgroundColor: PINK_COLOR }}
+          >
+            Go to Integrations
+          </Link>
         </div>
-      </div>
+      </SidebarLayout>
     )
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg text-gray-600">Loading jobs...</div>
-      </div>
+      <SidebarLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-10rem)]">
+          <div className="text-lg text-gray-600">Loading jobs...</div>
+        </div>
+      </SidebarLayout>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Jobs</h2>
-            <p className="text-red-700">{error}</p>
-          </div>
+      <SidebarLayout>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Jobs</h2>
+          <p className="text-red-700">{error}</p>
         </div>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -123,10 +119,8 @@ export default function Jobs() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <SidebarLayout>
+      <div className="bg-white rounded-2xl border border-[#EFEFEF] shadow-sm px-6 sm:px-8 py-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Jobs</h1>
 
         {jobs.length === 0 ? (
@@ -196,6 +190,6 @@ export default function Jobs() {
           </div>
         )}
       </div>
-    </div>
+    </SidebarLayout>
   )
 }

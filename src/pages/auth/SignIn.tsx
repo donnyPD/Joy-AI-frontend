@@ -3,37 +3,81 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { signIn, getMe } from '../../features/auth/authApi'
 import { clearError } from '../../features/auth/authSlice'
-// TODO: Add your logo PNG file to src/assets/logo.png
-// import logo from '../../assets/logo.png'
-const logo = '/logo.png' // Placeholder - update this path when logo is added
 
-const PINK_COLOR = '#E91E63'
-const PINK_DARK = '#C2185B'
+const PINK_COLOR = '#E80379'
+const PINK_DARK = '#EA1059'
+const ERROR_COLOR = '#DE2928'
 
 export default function SignIn() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  
+  // Focus states
+  const [focusedField, setFocusedField] = useState<string | null>(null)
+  
+  // Validation states
+  const [emailError, setEmailError] = useState('')
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set())
+  
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { isLoading, error, isAuthenticated, user } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
-    // Clear any previous errors
     dispatch(clearError())
   }, [dispatch])
 
   useEffect(() => {
-    // Redirect if authenticated, user data is loaded, and not currently loading
-    // This ensures we have full user data (including jobber token) before redirecting
     if (isAuthenticated && user && !isLoading) {
-      navigate('/dashboard')
+      navigate('/choose-plan')
     }
   }, [isAuthenticated, user, isLoading, navigate])
+
+  // Email validation
+  const validateEmail = (emailValue: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (emailValue && !emailRegex.test(emailValue)) {
+      setEmailError('Please enter a valid email address')
+      return false
+    }
+    setEmailError('')
+    return true
+  }
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setEmail(value)
+    if (touchedFields.has('email')) {
+      validateEmail(value)
+    }
+  }
+
+  const handleEmailBlur = () => {
+    setTouchedFields(prev => new Set(prev).add('email'))
+    validateEmail(email)
+  }
+
+  const handleFieldFocus = (fieldName: string) => {
+    setFocusedField(fieldName)
+  }
+
+  const handleFieldBlur = (fieldName: string) => {
+    setFocusedField(null)
+    setTouchedFields(prev => new Set(prev).add(fieldName))
+    if (fieldName === 'email') {
+      validateEmail(email)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     dispatch(clearError())
+    
+    if (!validateEmail(email)) {
+      return
+    }
     
     // Sign in first
     const signInResult = await dispatch(signIn({ email, password }))
@@ -44,203 +88,268 @@ export default function SignIn() {
     }
   }
 
+  const getInputBorderColor = (fieldName: string, hasError: boolean = false) => {
+    if (hasError) return ERROR_COLOR
+    if (focusedField === fieldName) return PINK_COLOR
+    return '#E7E7E7'
+  }
+
+  const getInputShadow = (fieldName: string, hasError: boolean = false) => {
+    if (hasError && focusedField === fieldName) {
+      return `0px 0px 0px 2px rgba(222, 41, 40, 0.25)`
+    }
+    if (focusedField === fieldName) {
+      return `0px 0px 0px 2px rgba(232, 3, 121, 0.25)`
+    }
+    return 'none'
+  }
+
   return (
-    <div className="min-h-screen flex overflow-hidden bg-gray-50">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#FDFDFD]">
       {/* Left Panel - White Background with Form */}
-      <div className="w-1/2 flex items-center justify-center bg-white px-12 py-12">
-        <div className="w-full max-w-lg">
-          {/* Logo */}
-          <div className="flex justify-center mb-8">
-            <img 
-              src={logo} 
-              alt="Joy AI Logo" 
-              className="h-12 w-auto" 
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }} 
-            />
+      <div className="w-full lg:w-1/2 flex flex-col items-center bg-white px-8 sm:px-12 py-6">
+        {/* Logo at top center */}
+        <div className="w-full flex justify-center mb-8">
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(180deg, #FF83AD 0%, #EA1059 100%)',
+                boxShadow: '0px 0px 0px 1px #E60953, 0px 2px 5px -1px rgba(224, 36, 99, 0.3), inset 0px 1px 2px rgba(255, 255, 255, 0.65), inset 0px -1px 2.5px 0.25px #B9003E'
+              }}
+            >
+              <img 
+                src="/signup-logo.png" 
+                alt="Logo" 
+                className="w-6 h-6"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+            <span className="text-xl font-semibold text-[#191919]">Joy AI</span>
+          </div>
+        </div>
+
+        {/* Main Container */}
+        <div className="w-full max-w-[440px] flex flex-col gap-6">
+          {/* Title Container */}
+          <div className="flex flex-col gap-3">
+            <h1 className="text-[32px] font-medium text-[#191919] text-center leading-[40px]">
+              Welcome back
+            </h1>
+            <p className="text-base text-[#A0A0A0] text-center leading-6">
+              Sign in to your account to continue
+            </p>
           </div>
 
-          {/* Title */}
-          <h1 className="text-4xl font-bold text-gray-900 text-center mb-2">
-            Welcome back
-          </h1>
-          <p className="text-base text-gray-600 text-center mb-8">
-            Sign in to your account to continue
-          </p>
-
-          {/* Form Card */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                  {error}
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {/* Email Input */}
+            <div className="relative">
+              <div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all"
+                style={{
+                  border: `1px solid ${getInputBorderColor('email', !!emailError)}`,
+                  boxShadow: getInputShadow('email', !!emailError),
+                  backgroundColor: '#FFFFFF'
+                }}
+              >
+                {/* Mail Icon */}
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="#B2B2B2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="L22 6L12 13L2 6" stroke="#B2B2B2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                
+                <input
+                  type="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  onFocus={() => handleFieldFocus('email')}
+                  onBlur={(e) => {
+                    handleEmailBlur()
+                    handleFieldBlur('email')
+                  }}
+                  placeholder="Enter your email"
+                  className="flex-1 text-sm font-medium placeholder:text-[#B2B2B2] outline-none bg-transparent"
+                  style={{ color: emailError ? ERROR_COLOR : '#191919' }}
+                  autoComplete="email"
+                  required
+                />
+              </div>
+              {(focusedField === 'email' || email) && (
+                <div 
+                  className="absolute -top-3 left-[38px] px-1 bg-white z-10"
+                  style={{ background: 'linear-gradient(180deg, #FDFDFD 50%, #FFFFFF 50%)' }}
+                >
+                  <span 
+                    className="text-xs font-medium"
+                    style={{ color: emailError ? ERROR_COLOR : '#B2B2B2' }}
+                  >
+                    Enter your email
+                  </span>
                 </div>
               )}
+              {emailError && (
+                <div className="flex items-center gap-1 mt-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke={ERROR_COLOR} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="text-xs font-medium" style={{ color: ERROR_COLOR }}>
+                    {emailError}
+                  </span>
+                </div>
+              )}
+            </div>
 
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
-                </label>
+            {/* Password Input */}
+            <div className="relative">
+              <div 
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all"
+                style={{
+                  border: `1px solid ${getInputBorderColor('password')}`,
+                  boxShadow: getInputShadow('password'),
+                  backgroundColor: '#FFFFFF'
+                }}
+              >
+                {/* Lock Icon */}
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M19 11H5C3.89543 11 3 11.8954 3 13V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V13C21 11.8954 20.1046 11 19 11Z" stroke="#B2B2B2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="#B2B2B2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => handleFieldFocus('password')}
+                  onBlur={() => handleFieldBlur('password')}
+                  placeholder="Enter your password"
+                  className="flex-1 text-sm font-medium text-[#191919] placeholder:text-[#B2B2B2] outline-none bg-transparent"
+                  autoComplete="current-password"
+                  required
+                />
+                
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="p-1.5 rounded-xl hover:bg-[#F5F5F5] transition-colors"
+                >
+                  {showPassword ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="#191919" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#191919" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M17.94 17.94C16.2306 19.243 14.1491 19.9649 12 20C5 20 1 12 1 12C2.24389 9.68192 3.96914 7.65663 6.06 6.06M9.9 4.24C10.5883 4.0789 11.2931 3.99836 12 4C19 4 23 12 23 12C22.393 13.1356 21.6691 14.2047 20.84 15.19M14.12 14.12C13.8454 14.4148 13.5141 14.6512 13.1462 14.8151C12.7782 14.9791 12.3809 15.0673 11.9781 15.0744C11.5753 15.0815 11.1747 15.0074 10.8016 14.8565C10.4286 14.7056 10.0887 14.4811 9.80385 14.1962C9.51897 13.9113 9.29441 13.5714 9.14351 13.1984C8.9926 12.8253 8.91853 12.4247 8.92564 12.0219C8.93275 11.6191 9.02091 11.2218 9.18488 10.8538C9.34884 10.4859 9.58525 10.1546 9.88 9.88" stroke="#191919" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M1 1L23 23" stroke="#191919" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {(focusedField === 'password' || password) && (
+                <div 
+                  className="absolute -top-3 left-[38px] px-1 bg-white z-10"
+                  style={{ background: 'linear-gradient(180deg, #FDFDFD 50%, #FFFFFF 50%)' }}
+                >
+                  <span className="text-xs font-medium text-[#B2B2B2]">Enter your password</span>
+                </div>
+              )}
+            </div>
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between pl-2">
+              <div className="flex items-center gap-2">
                 <div className="relative">
                   <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 text-base border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                    style={{ '--tw-ring-color': PINK_COLOR } as React.CSSProperties}
-                    placeholder="john@example.com"
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 text-base border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                    style={{ '--tw-ring-color': PINK_COLOR } as React.CSSProperties}
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="rememberMe"
-                    name="rememberMe"
                     type="checkbox"
+                    id="rememberMe"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 border-gray-300 rounded focus:ring-2"
-                    style={{ accentColor: PINK_COLOR }}
+                    className="sr-only"
                   />
-                  <label htmlFor="rememberMe" className="ml-2 text-sm font-medium text-gray-700">
-                    Remember me
+                  <label
+                    htmlFor="rememberMe"
+                    className={`w-5 h-5 rounded-md border flex items-center justify-center cursor-pointer transition-all ${
+                      rememberMe ? 'border-transparent' : 'border-[#D4D4D4]'
+                    }`}
+                    style={{
+                      backgroundColor: rememberMe ? PINK_COLOR : 'transparent'
+                    }}
+                  >
+                    {rememberMe && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17L4 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
                   </label>
                 </div>
-                <Link 
-                  to="/forgot-password" 
-                  className="text-sm font-medium hover:underline transition-colors"
-                  style={{ color: PINK_COLOR }}
-                >
-                  Forgot password?
-                </Link>
+                <label htmlFor="rememberMe" className="text-sm font-medium text-[#B2B2B2] cursor-pointer">
+                  Remember me
+                </label>
               </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full text-white font-semibold text-base py-3.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
-                style={{ backgroundColor: PINK_COLOR }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = PINK_DARK}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = PINK_COLOR}
+              <Link 
+                to="/forgot-password" 
+                className="text-sm font-medium hover:underline transition-colors"
+                style={{ color: PINK_COLOR }}
               >
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </button>
-            </form>
-          </div>
+                Forgot password?
+              </Link>
+            </div>
 
-          {/* Sign Up Link */}
-          <p className="mt-6 text-center text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link 
-              to="/signup" 
-              className="font-semibold hover:underline transition-colors"
-              style={{ color: PINK_COLOR }}
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-sm font-semibold text-white transition-all"
+              style={{
+                backgroundColor: PINK_COLOR,
+                opacity: isLoading ? 0.6 : 1,
+                cursor: isLoading ? 'not-allowed' : 'pointer'
+              }}
             >
-              Sign Up
-            </Link>
-          </p>
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </button>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Sign Up Link */}
+            <div className="flex items-center justify-center gap-1">
+              <span className="text-sm font-medium text-[#ADADAD]">
+                Don't have an account?
+              </span>
+              <Link 
+                to="/signup" 
+                className="text-sm font-semibold hover:underline transition-colors"
+                style={{ color: PINK_COLOR }}
+              >
+                Sign Up
+              </Link>
+            </div>
+          </form>
         </div>
       </div>
 
-      {/* Right Panel - Pink Background with Marketing Content */}
-      <div 
-        className="w-1/2 flex items-center justify-center px-12 py-12" 
-        style={{ backgroundColor: PINK_COLOR }}
-      >
-        <div className="max-w-lg text-white">
-          {/* Sparkle Icon */}
-          <div className="flex justify-center mb-6">
-            <svg
-              className="w-12 h-12"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-            </svg>
-          </div>
-
-          {/* Heading */}
-          <h2 className="text-4xl font-bold text-center mb-4">
-            Transform Your Cleaning Business
-          </h2>
-          <p className="text-lg text-center text-white/95 mb-10 leading-relaxed">
-            Streamline operations, manage your team, and grow your revenue with our comprehensive
-            business management platform.
-          </p>
-
-          {/* Features */}
-          <div className="space-y-8">
-            {/* Team Management */}
-            <div className="flex items-start">
-              <div className="flex-shrink-0 p-3 bg-white/20 rounded-xl">
-                <svg
-                  className="w-8 h-8"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" />
-                  <path d="M12 14C8.13401 14 5 17.134 5 21H19C19 17.134 15.866 14 12 14Z" />
-                  <path d="M16 11C18.2091 11 20 9.20914 20 7C20 4.79086 18.2091 3 16 3C13.7909 3 12 4.79086 12 7C12 9.20914 13.7909 11 16 11Z" />
-                  <path d="M21 21H15C15 18.2386 17.2386 16 20 16C22.7614 16 25 18.2386 25 21H21Z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <h3 className="text-xl font-bold mb-1">Team Management</h3>
-                <p className="text-white/90 text-base">Coordinate schedules and track performance</p>
-              </div>
-            </div>
-
-            {/* Secure & Reliable */}
-            <div className="flex items-start">
-              <div className="flex-shrink-0 p-3 bg-white/20 rounded-xl">
-                <svg
-                  className="w-8 h-8"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1ZM12 7C13.4 7 14.8 8.6 14.8 10V11.5C15.4 11.5 16 12.1 16 12.7V16.2C16 16.8 15.4 17.3 14.8 17.3H9.2C8.6 17.3 8 16.7 8 16.2V12.8C8 12.2 8.6 11.6 9.2 11.6V10C9.2 8.6 10.6 7 12 7ZM12 8.2C11.2 8.2 10.5 8.7 10.5 10V11.5H13.5V10C13.5 8.7 12.8 8.2 12 8.2Z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <h3 className="text-xl font-bold mb-1">Secure & Reliable</h3>
-                <p className="text-white/90 text-base">Your data is protected with enterprise-grade security</p>
-              </div>
-            </div>
-          </div>
+      {/* Right Panel - Pink Background with Banner */}
+      <div className="w-full lg:w-1/2 p-4 sm:p-6">
+        <div 
+          className="w-full h-full min-h-[420px] rounded-3xl overflow-hidden relative"
+          style={{ backgroundColor: PINK_COLOR }}
+        >
+          <img 
+            src="/signup-banner.png" 
+            alt="Cleaning business illustration" 
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
         </div>
       </div>
     </div>
