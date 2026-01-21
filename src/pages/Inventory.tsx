@@ -15,11 +15,9 @@ import {
   useInventorySnapshot,
   useAutoSnapshot,
   useInventoryPurchases,
-  useInventoryFormSubmissions,
   type Inventory as InventoryType,
   type InventoryCategory,
   type InventoryPurchase,
-  type InventoryFormSubmission,
 } from '../features/inventory/inventoryApi'
 import toast from 'react-hot-toast'
 
@@ -44,32 +42,6 @@ interface MetricRow {
   col_1: string
   'Snapshot KPIs': string
   [key: string]: string | number
-}
-
-interface OrderGroup {
-  orderId: string
-  date: string
-  store: string
-  totalAmount: number
-  items: InventoryPurchase[]
-}
-
-interface ParsedItem {
-  name: string
-  quantity: number
-}
-
-interface TechnicianWithPurchase {
-  id: string
-  techName: string
-  latestPurchaseDate?: string | null
-  latestPurchase?: {
-    id: string
-    purchaseDate: string
-    itemsRaw: string
-    itemsParsed?: any | null
-    isCompleted: boolean
-  } | null
 }
 
 // Helper function to get month revenue from snapshot data
@@ -107,12 +79,10 @@ function InventoryBudgetCards({
   snapshotData,
   selectedMonth,
   selectedYear,
-  isCurrentMonth,
 }: {
   snapshotData: MetricRow[] | undefined
   selectedMonth: number
   selectedYear: number
-  isCurrentMonth: boolean
 }) {
   const revenueData = getMonthRevenue(snapshotData, selectedMonth, selectedYear)
 
@@ -576,7 +546,6 @@ export default function Inventory() {
               snapshotData={snapshot?.snapshotData as MetricRow[] | undefined}
               selectedMonth={selectedMonth}
               selectedYear={selectedYear}
-              isCurrentMonth={isCurrentMonth}
             />
 
             {/* Categories */}

@@ -10,7 +10,6 @@ import UserFormDrawer from '../components/UserFormDrawer'
 import NoteEntryDialog from '../components/NoteEntryDialog'
 import CustomMetricEntryDialog from '../components/CustomMetricEntryDialog'
 import { CalendarDays, Type, Upload, DollarSign, Hash, Image, X } from 'lucide-react'
-const PINK_COLOR = '#E91E63'
 
 function getCurrentYear(): number {
   return new Date().getFullYear()
@@ -74,10 +73,6 @@ export default function TeamMemberDetail() {
   const handleSignOut = () => {
     dispatch(logout())
     navigate('/signin')
-  }
-
-  const handleEdit = () => {
-    setDrawerOpen(true)
   }
 
   const handleCloseDrawer = () => {
@@ -244,20 +239,6 @@ export default function TeamMemberDetail() {
 
   const getFilteredKpiEntriesByType = (type: string) => {
     return filteredKpiEntries.filter((entry) => entry.kpiType === type)
-  }
-  
-  // Get custom metric color helper
-  const getCustomMetricColor = (color: string | null) => {
-    const colorMap: Record<string, string> = {
-      'red': '#ef4444',
-      'orange': '#f97316',
-      'yellow': '#eab308',
-      'green': '#22c55e',
-      'blue': '#3b82f6',
-      'purple': '#a855f7',
-      'pink': '#ec4899',
-    }
-    return colorMap[color || 'blue'] || '#3b82f6'
   }
 
   // Get field type icon helper

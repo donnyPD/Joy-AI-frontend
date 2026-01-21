@@ -378,7 +378,7 @@ export default function CustomMetricDefinitionsManager() {
                 </div>
 
                 <div className="space-y-3">
-                  {formData.fields.map((field, index) => (
+                  {formData.fields.map((field) => (
                     <div
                       key={field.id}
                       className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg bg-gray-50"
@@ -406,14 +406,11 @@ export default function CustomMetricDefinitionsManager() {
                             }
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
-                            {FIELD_TYPE_OPTIONS.map((option) => {
-                              const Icon = option.icon
-                              return (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              )
-                            })}
+                            {FIELD_TYPE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
                       </div>
