@@ -1,0 +1,12 @@
+# .coderabbit.yml
+
+reviews:
+  auto_review:
+    enabled: true
+    drafts: true
+
+pull_requests:
+  branches:
+    include:
+      - main
+      - staging
