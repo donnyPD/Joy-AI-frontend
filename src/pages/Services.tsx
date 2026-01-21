@@ -1,16 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
-import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
 
-interface TeamMember {
-  id: string
-  name: string
-  [key: string]: any
-}
-
-export default function Operations() {
+export default function Services() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
@@ -18,17 +10,6 @@ export default function Operations() {
     dispatch(logout())
     navigate('/signin')
   }
-
-  // Fetch team members from API
-  const { data: teamMembers } = useQuery<TeamMember[]>({
-    queryKey: ['/team-members'],
-    queryFn: async () => {
-      const response = await api.get<TeamMember[]>('/team-members')
-      return response.data
-    },
-  })
-
-  const teamMembersCount = teamMembers?.length || 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -89,17 +70,18 @@ export default function Operations() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Operations</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Services</h1>
 
-        {/* Operations Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Link to="/operations/team" className="block">
-            <div className="bg-white rounded-lg shadow-sm border border-blue-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
+          {/* Metrics Card */}
+          <Link to="/services/metrics" className="block">
+            <div className="bg-white rounded-lg shadow-sm border border-red-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
               <div className="p-6">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-blue-100 rounded-lg">
+                  <div className="p-3 bg-red-100 rounded-lg">
+                    {/* Red team icon - two human figures */}
                     <svg
-                      className="w-6 h-6 text-blue-600"
+                      className="w-6 h-6 text-red-600"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -113,15 +95,15 @@ export default function Operations() {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                      Team Management
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-red-600 transition-colors">
+                      Metrics
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      Manage team members and access
+                      View team performance and KPIs
                     </p>
                   </div>
                   <svg
-                    className="w-5 h-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all"
+                    className="w-5 h-5 text-gray-400 group-hover:text-red-600 group-hover:translate-x-1 transition-all"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -137,56 +119,10 @@ export default function Operations() {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between text-xs text-gray-600">
                     <span className="text-2xl font-bold text-gray-900">
-                      {teamMembersCount}
+                      Monthly
                     </span>
-                    <span className="text-gray-500">Total Members</span>
+                    <span className="text-gray-500">Team Reports</span>
                   </div>
-                </div>
-              </div>
-            </div>
-          </Link>
-
-          {/* Inventory Card */}
-          <Link to="/operations/inventory" className="block">
-            <div className="bg-white rounded-lg shadow-sm border border-green-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <svg
-                      className="w-6 h-6 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-green-600 transition-colors">
-                      Inventory
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Manage inventory items and purchases
-                    </p>
-                  </div>
-                  <svg
-                    className="w-5 h-5 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
                 </div>
               </div>
             </div>

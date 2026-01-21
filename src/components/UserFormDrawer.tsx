@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useTeamMember, useCreateTeamMember, useUpdateTeamMember } from '../features/team-members/teamMembersApi'
 import type { CreateTeamMemberData } from '../features/team-members/teamMembersApi'
+import { useTeamMemberTypes, useTeamMemberStatuses } from '../features/team-member-options/teamMemberOptionsApi'
 
 const PINK_COLOR = '#E91E63'
-
-const TYPE_OPTIONS = ['W2', '1099']
-const STATUS_OPTIONS = ['Active', 'Dismissed', 'No Longer Working', 'On Leave']
 
 interface UserFormDrawerProps {
   open: boolean
@@ -18,13 +16,19 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
   const { data: member } = useTeamMember(mode === 'edit' ? memberId : undefined)
   const createMutation = useCreateTeamMember()
   const updateMutation = useUpdateTeamMember()
+  const { data: types = [], isLoading: typesLoading } = useTeamMemberTypes()
+  const { data: statuses = [], isLoading: statusesLoading } = useTeamMemberStatuses()
+
+  // Calculate default values at component level (before useState)
+  const defaultType = types.find((t) => t.isActive && t.name === 'W2')?.name || (types.find((t) => t.isActive)?.name || 'W2')
+  const defaultStatus = statuses.find((s) => s.isActive && s.name === 'Active')?.name || (statuses.find((s) => s.isActive)?.name || 'Active')
 
   const [formData, setFormData] = useState<CreateTeamMemberData>({
     photo: '',
     name: '',
     slackId: '',
-    type: 'W2',
-    status: 'Active',
+    type: defaultType,
+    status: defaultStatus,
     employmentType: 'Full Time',
     email: '',
     phone: '',
@@ -53,9 +57,12 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
 
   useEffect(() => {
     if (member && mode === 'edit') {
-      // Check if type is a custom value
-      const isTypeCustom = !TYPE_OPTIONS.includes(member.type)
-      const isStatusCustom = !STATUS_OPTIONS.includes(member.status)
+      // Check if type is a custom value (not in active types)
+      const activeTypeNames = types.filter((t) => t.isActive).map((t) => t.name)
+      const isTypeCustom = !activeTypeNames.includes(member.type)
+      // Check if status is a custom value (not in active statuses)
+      const activeStatusNames = statuses.filter((s) => s.isActive).map((s) => s.name)
+      const isStatusCustom = !activeStatusNames.includes(member.status)
       
       setTypeIsOther(isTypeCustom)
       setStatusIsOther(isStatusCustom)
@@ -90,6 +97,9 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
         setPhotoPreview(member.photo)
       }
     } else if (mode === 'add') {
+      // Set default values from API if available
+      const defaultType = types.find((t) => t.isActive && t.name === 'W2')?.name || (types.find((t) => t.isActive)?.name || 'W2')
+      const defaultStatus = statuses.find((s) => s.isActive && s.name === 'Active')?.name || (statuses.find((s) => s.isActive)?.name || 'Active')
       setTypeIsOther(false)
       setStatusIsOther(false)
       setCustomType('')
@@ -98,8 +108,8 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
         photo: '',
         name: '',
         slackId: '',
-        type: 'W2',
-        status: 'Active',
+        type: defaultType,
+        status: defaultStatus,
         employmentType: 'Full Time',
         email: '',
         phone: '',
@@ -121,7 +131,7 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
       setPhotoPreview(null)
     }
     setErrors({})
-  }, [member, mode, open])
+  }, [member, mode, open, types, statuses])
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -310,27 +320,38 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Type *</label>
-                    <select
-                      value={typeIsOther ? 'Other' : formData.type}
-                      onChange={(e) => {
-                        if (e.target.value === 'Other') {
-                          setTypeIsOther(true)
-                          setCustomType('')
-                          handleChange('type', '')
-                        } else {
-                          setTypeIsOther(false)
-                          setCustomType('')
-                          handleChange('type', e.target.value)
-                        }
-                      }}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errors.type ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    >
-                      <option value="W2">W2</option>
-                      <option value="1099">1099</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    {typesLoading ? (
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 text-sm">
+                        Loading types...
+                      </div>
+                    ) : (
+                      <select
+                        value={typeIsOther ? 'Other' : formData.type}
+                        onChange={(e) => {
+                          if (e.target.value === 'Other') {
+                            setTypeIsOther(true)
+                            setCustomType('')
+                            handleChange('type', '')
+                          } else {
+                            setTypeIsOther(false)
+                            setCustomType('')
+                            handleChange('type', e.target.value)
+                          }
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                          errors.type ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      >
+                        {types
+                          .filter((t) => t.isActive)
+                          .map((type) => (
+                            <option key={type.id} value={type.name}>
+                              {type.name}
+                            </option>
+                          ))}
+                        <option value="Other">Other</option>
+                      </select>
+                    )}
                     {typeIsOther && (
                       <input
                         type="text"
@@ -353,29 +374,38 @@ export default function UserFormDrawer({ open, onClose, mode, memberId }: UserFo
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
-                    <select
-                      value={statusIsOther ? 'Other' : formData.status}
-                      onChange={(e) => {
-                        if (e.target.value === 'Other') {
-                          setStatusIsOther(true)
-                          setCustomStatus('')
-                          handleChange('status', '')
-                        } else {
-                          setStatusIsOther(false)
-                          setCustomStatus('')
-                          handleChange('status', e.target.value)
-                        }
-                      }}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errors.status ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Dismissed">Dismissed</option>
-                      <option value="No Longer Working">No Longer Working</option>
-                      <option value="On Leave">On Leave</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    {statusesLoading ? (
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 text-sm">
+                        Loading statuses...
+                      </div>
+                    ) : (
+                      <select
+                        value={statusIsOther ? 'Other' : formData.status}
+                        onChange={(e) => {
+                          if (e.target.value === 'Other') {
+                            setStatusIsOther(true)
+                            setCustomStatus('')
+                            handleChange('status', '')
+                          } else {
+                            setStatusIsOther(false)
+                            setCustomStatus('')
+                            handleChange('status', e.target.value)
+                          }
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                          errors.status ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      >
+                        {statuses
+                          .filter((s) => s.isActive)
+                          .map((status) => (
+                            <option key={status.id} value={status.name}>
+                              {status.name}
+                            </option>
+                          ))}
+                        <option value="Other">Other</option>
+                      </select>
+                    )}
                     {statusIsOther && (
                       <input
                         type="text"

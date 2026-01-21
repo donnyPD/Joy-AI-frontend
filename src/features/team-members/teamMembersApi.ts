@@ -139,3 +139,150 @@ export function useDeleteTeamMember() {
     },
   })
 }
+
+// Team Metrics Summary types and hooks
+export interface KpiEntry {
+  id: string
+  teamMemberId: string
+  kpiType: string
+  date: string
+  description?: string | null
+  cost?: number | null
+  createdAt: string
+}
+
+export interface MemberMetrics {
+  [metricType: string]: {
+    count: number
+    entries: KpiEntry[]
+  }
+}
+
+export interface TeamMemberSummary {
+  id: string
+  name: string
+  photo?: string | null
+  status: string
+  metrics: MemberMetrics
+}
+
+export interface TeamMetricsSummaryData {
+  active: TeamMemberSummary[]
+  dismissed: TeamMemberSummary[]
+  metricTypes: string[]
+}
+
+// Fetch team metrics summary
+export function useTeamMetricsSummary(month?: string) {
+  return useQuery<TeamMetricsSummaryData>({
+    queryKey: ['/team-metrics-summary', month],
+    queryFn: async () => {
+      const params = month ? { month } : {}
+      const response = await api.get<TeamMetricsSummaryData>('/team-metrics-summary', { params })
+      return response.data
+    },
+  })
+}
+
+// Custom Metric Definitions types and hooks
+export interface MetricField {
+  id: string
+  name: string
+  type: 'date' | 'text' | 'upload' | 'dollarValue' | 'number' | 'image'
+  required: boolean
+}
+
+export interface CustomMetricDefinition {
+  id: string
+  name: string
+  description: string | null
+  icon: string | null
+  color: string | null
+  fields: MetricField[]
+  isActive: boolean
+  threshold: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCustomMetricDefinitionData {
+  name: string
+  description?: string
+  icon?: string
+  color?: string
+  fields: MetricField[]
+  isActive?: boolean
+  threshold?: number | string
+}
+
+export interface UpdateCustomMetricDefinitionData extends Partial<CreateCustomMetricDefinitionData> {}
+
+// Fetch all custom metric definitions
+export function useCustomMetricDefinitions() {
+  return useQuery<CustomMetricDefinition[]>({
+    queryKey: ['/custom-metric-definitions'],
+    queryFn: async () => {
+      const response = await api.get<CustomMetricDefinition[]>('/custom-metric-definitions')
+      return response.data
+    },
+  })
+}
+
+// Create custom metric definition mutation
+export function useCreateCustomMetricDefinition() {
+  const queryClient = useQueryClient()
+
+  return useMutation<CustomMetricDefinition, Error, CreateCustomMetricDefinitionData>({
+    mutationFn: async (data) => {
+      const response = await api.post<CustomMetricDefinition>('/custom-metric-definitions', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/custom-metric-definitions'] })
+      toast.success('Metric created successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create metric'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Update custom metric definition mutation
+export function useUpdateCustomMetricDefinition() {
+  const queryClient = useQueryClient()
+
+  return useMutation<CustomMetricDefinition, Error, { id: string; data: UpdateCustomMetricDefinitionData }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.patch<CustomMetricDefinition>(`/custom-metric-definitions/${id}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/custom-metric-definitions'] })
+      toast.success('Metric updated successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update metric'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Delete custom metric definition mutation
+export function useDeleteCustomMetricDefinition() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => {
+      await api.delete(`/custom-metric-definitions/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/custom-metric-definitions'] })
+      toast.success('Metric deleted successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete metric'
+      toast.error(errorMessage)
+    },
+  })
+}

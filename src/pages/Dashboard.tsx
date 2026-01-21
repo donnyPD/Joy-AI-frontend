@@ -40,6 +40,9 @@ export default function Dashboard() {
                 <Link to="/operations" className="text-gray-700 hover:text-joy-pink font-medium">
                   Operations
                 </Link>
+                <Link to="/services" className="text-gray-700 hover:text-joy-pink font-medium">
+                  Services
+                </Link>
               </div>
             </div>
 
