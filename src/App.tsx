@@ -16,6 +16,8 @@ import Operations from './pages/Operations'
 import Services from './pages/Services'
 import ManageTeam from './pages/ManageTeam'
 import TeamMemberDetail from './pages/TeamMemberDetail'
+import Inventory from './pages/Inventory'
+import Metrics from './pages/Metrics'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -96,6 +98,18 @@ function App() {
       <Route
         path="/"
         element={isAuthenticated ? <Home /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/operations/inventory"
+        element={isAuthenticated ? <Inventory /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/services"
+        element={isAuthenticated ? <Services /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/services/metrics"
+        element={isAuthenticated ? <Metrics /> : <Navigate to="/signin" />}
       />
     </Routes>
   )

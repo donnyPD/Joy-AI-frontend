@@ -52,8 +52,31 @@ export default function Operations() {
               <Link to="/operations" className="text-gray-700 hover:text-gray-900 font-medium">
                 Operations
               </Link>
+              <Link to="/services" className="text-gray-700 hover:text-gray-900 font-medium">
+                Services
+              </Link>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              <Link
+                to="/settings"
+                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                title="Settings"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </Link>
               <button
                 onClick={handleSignOut}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-joy-pink border border-gray-300 rounded-lg hover:border-joy-pink transition-colors"
@@ -68,7 +91,7 @@ export default function Operations() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Operations</h1>
 
-        {/* JOY Team Card */}
+        {/* Operations Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link to="/operations/team" className="block">
             <div className="bg-white rounded-lg shadow-sm border border-blue-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
@@ -91,7 +114,7 @@ export default function Operations() {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                      JOY Team
+                      Team Management
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">
                       Manage team members and access
@@ -118,6 +141,52 @@ export default function Operations() {
                     </span>
                     <span className="text-gray-500">Total Members</span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Inventory Card */}
+          <Link to="/operations/inventory" className="block">
+            <div className="bg-white rounded-lg shadow-sm border border-green-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <svg
+                      className="w-6 h-6 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-green-600 transition-colors">
+                      Inventory
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Manage inventory items and purchases
+                    </p>
+                  </div>
+                  <svg
+                    className="w-5 h-5 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
                 </div>
               </div>
             </div>

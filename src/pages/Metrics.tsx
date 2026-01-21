@@ -1,10 +1,15 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
+import TeamMetricsSummary from '../components/TeamMetricsSummary'
+import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
+import { Plus, BarChart3, Home } from 'lucide-react'
 
-export default function Services() {
+export default function Metrics() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<'add-metrics' | 'summary'>('add-metrics')
 
   const handleSignOut = () => {
     dispatch(logout())
@@ -69,64 +74,64 @@ export default function Services() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Services</h1>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Metrics Card */}
-          <Link to="/services/metrics" className="block">
-            <div className="bg-white rounded-lg shadow-sm border border-red-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-red-100 rounded-lg">
-                    {/* Red team icon - two human figures */}
-                    <svg
-                      className="w-6 h-6 text-red-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-red-600 transition-colors">
-                      Metrics
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      View team performance and KPIs
-                    </p>
-                  </div>
-                  <svg
-                    className="w-5 h-5 text-gray-400 group-hover:text-red-600 group-hover:translate-x-1 transition-all"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </div>
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-between text-xs text-gray-600">
-                    <span className="text-2xl font-bold text-gray-900">
-                      Monthly
-                    </span>
-                    <span className="text-gray-500">Team Reports</span>
-                  </div>
-                </div>
-              </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8 sticky top-16 bg-gray-50 z-30 py-4 -mt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Metrics</h1>
+              <p className="text-gray-600 mt-2">
+                Manage and view team performance metrics
+              </p>
             </div>
-          </Link>
+            <Link
+              to="/services"
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors flex items-center gap-2"
+            >
+              <Home className="h-4 w-4" />
+              Back to Services
+            </Link>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="w-full">
+          <div className="flex gap-2 mb-6 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('add-metrics')}
+              className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
+                activeTab === 'add-metrics'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Plus className="h-4 w-4" />
+              Add Metrics
+            </button>
+            <button
+              onClick={() => setActiveTab('summary')}
+              className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
+                activeTab === 'summary'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <BarChart3 className="h-4 w-4" />
+              Summary
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'add-metrics' && (
+            <div>
+              <CustomMetricDefinitionsManager />
+            </div>
+          )}
+
+          {activeTab === 'summary' && (
+            <div>
+              <TeamMetricsSummary />
+            </div>
+          )}
         </div>
       </div>
     </div>
