@@ -2,35 +2,14 @@ import { useState, useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
-import { useTeamMember } from '../features/team-members/teamMembersApi'
+import { useTeamMember, useUpdateTeamMember, useCustomMetricDefinitions, type CustomMetricDefinition, type MetricField } from '../features/team-members/teamMembersApi'
 import { useKpiEntries, useUpdateKpiEntry, useDeleteKpiEntry } from '../features/kpi-entries/kpiEntriesApi'
-import { useInventoryNotes } from '../features/inventory-notes/inventoryNotesApi'
-import { useInventoryPurchases } from '../features/inventory-purchases/inventoryPurchasesApi'
+import { useInventoryNotes, useDeleteInventoryNote } from '../features/inventory-notes/inventoryNotesApi'
+import { useInventoryPurchases, useUpdateInventoryPurchase, useDeleteInventoryPurchase } from '../features/inventory-purchases/inventoryPurchasesApi'
 import UserFormDrawer from '../components/UserFormDrawer'
-import KpiEntryDialog from '../components/KpiEntryDialog'
 import NoteEntryDialog from '../components/NoteEntryDialog'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
-const PINK_COLOR = '#E91E63'
-
-const kpiTypes = [
-  { type: 'lastMinuteCallOffs', name: 'Last Minute Call Offs', icon: '⚠️', color: 'text-red-500' },
-  { type: 'arrivingLate', name: 'Arriving Late', icon: '🕐', color: 'text-orange-500' },
-  { type: 'excusedTimeOffs', name: 'Excused Time Offs', icon: '📅', color: 'text-blue-500' },
-  { type: 'complaints', name: 'Complaints', icon: '👎', color: 'text-red-600' },
-  { type: 'npsMonthly', name: 'NPS Monthly', icon: '📈', color: 'text-green-500' },
-  { type: 'googleReviewsObtained', name: 'Google Reviews Obtained', icon: '⭐', color: 'text-yellow-500' },
-  { type: 'damages', name: 'Damages', icon: '⚠️', color: 'text-purple-500' },
-]
-
-const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+import CustomMetricEntryDialog from '../components/CustomMetricEntryDialog'
+import { CalendarDays, Type, Upload, DollarSign, Hash, Image, X } from 'lucide-react'
 
 function getCurrentYear(): number {
   return new Date().getFullYear()
@@ -76,39 +55,157 @@ export default function TeamMemberDetail() {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const { data: member, isLoading } = useTeamMember(id)
+  const updateMutation = useUpdateTeamMember()
+
+  // Edit state for sections
+  const [editingSection, setEditingSection] = useState<'contact' | 'personal' | 'employment' | null>(null)
+  const [editFormData, setEditFormData] = useState<{
+    email?: string
+    phone?: string
+    address?: string
+    birthday?: string
+    primaryLanguage?: string
+    workStartDate?: string
+    trainingStartDate?: string
+    trainingEndDate?: string
+  }>({})
 
   const handleSignOut = () => {
     dispatch(logout())
     navigate('/signin')
   }
 
-  const handleEdit = () => {
-    setDrawerOpen(true)
-  }
-
   const handleCloseDrawer = () => {
     setDrawerOpen(false)
   }
 
+  // Helper function to convert date to YYYY-MM-DD format for date inputs
+  const formatDateForInput = (dateString: string | null | undefined): string => {
+    if (!dateString) return ''
+    try {
+      const date = new Date(dateString)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    } catch {
+      return ''
+    }
+  }
+
+  // Start editing a section
+  const handleStartEdit = (section: 'contact' | 'personal' | 'employment') => {
+    if (!member) return
+
+    if (section === 'contact') {
+      setEditFormData({
+        email: member.email || '',
+        phone: member.phone || '',
+        address: member.address || '',
+      })
+    } else if (section === 'personal') {
+      setEditFormData({
+        birthday: formatDateForInput(member.birthday),
+        primaryLanguage: member.primaryLanguage || '',
+        workStartDate: formatDateForInput(member.workStartDate),
+      })
+    } else if (section === 'employment') {
+      setEditFormData({
+        trainingStartDate: formatDateForInput(member.trainingStartDate),
+        trainingEndDate: formatDateForInput(member.trainingEndDate),
+        workStartDate: formatDateForInput(member.workStartDate),
+      })
+    }
+    setEditingSection(section)
+  }
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingSection(null)
+    setEditFormData({})
+  }
+
+  // Handle field change
+  const handleFieldChange = (field: string, value: string) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  // Save changes
+  const handleSaveEdit = () => {
+    if (!member || !editingSection) return
+
+    const updateData: any = {}
+
+    if (editingSection === 'contact') {
+      updateData.email = editFormData.email
+      updateData.phone = editFormData.phone
+      updateData.address = editFormData.address
+    } else if (editingSection === 'personal') {
+      updateData.birthday = editFormData.birthday || null
+      updateData.primaryLanguage = editFormData.primaryLanguage
+      updateData.workStartDate = editFormData.workStartDate || null
+    } else if (editingSection === 'employment') {
+      updateData.trainingStartDate = editFormData.trainingStartDate || null
+      updateData.trainingEndDate = editFormData.trainingEndDate || null
+      updateData.workStartDate = editFormData.workStartDate || null
+    }
+
+    updateMutation.mutate(
+      { id: member.id, data: updateData },
+      {
+        onSuccess: () => {
+          setEditingSection(null)
+          setEditFormData({})
+        },
+      },
+    )
+  }
+
   const [activeTab, setActiveTab] = useState<'metrics' | 'notes' | 'inventory'>('metrics')
   const [filterYear, setFilterYear] = useState<string>(getCurrentYear().toString())
-  const [selectedKpi, setSelectedKpi] = useState<{ type: string; name: string } | null>(null)
+  const [selectedKpi, setSelectedKpi] = useState<{ type: string; name: string; isCustom?: boolean; customMetric?: CustomMetricDefinition } | null>(null)
   const [selectedNote, setSelectedNote] = useState<any | null>(null)
   const [selectedPurchase, setSelectedPurchase] = useState<any | null>(null)
-  const [kpiDialogOpen, setKpiDialogOpen] = useState(false)
+  const [customMetricDialogOpen, setCustomMetricDialogOpen] = useState(false)
+  const [selectedCustomMetric, setSelectedCustomMetric] = useState<CustomMetricDefinition | null>(null)
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
+  const [noteToEdit, setNoteToEdit] = useState<any | null>(null)
+  const [noteDeleteDialogOpen, setNoteDeleteDialogOpen] = useState(false)
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null)
+  const [purchaseEditDialogOpen, setPurchaseEditDialogOpen] = useState(false)
+  const [purchaseToEdit, setPurchaseToEdit] = useState<any | null>(null)
+  const [editPurchaseDate, setEditPurchaseDate] = useState('')
+  const [editPurchaseItems, setEditPurchaseItems] = useState('')
+  const [editPurchaseCompleted, setEditPurchaseCompleted] = useState(false)
+  const [purchaseDeleteDialogOpen, setPurchaseDeleteDialogOpen] = useState(false)
+  const [purchaseToDelete, setPurchaseToDelete] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<any | null>(null)
   const [editDescription, setEditDescription] = useState('')
   const [editCost, setEditCost] = useState('')
+  const [editingCustomMetric, setEditingCustomMetric] = useState<CustomMetricDefinition | null>(null)
+  const [editFieldValues, setEditFieldValues] = useState<Record<string, string>>({})
+  const [editEntryDate, setEditEntryDate] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null)
 
   const { data: kpiEntries = [] } = useKpiEntries(id)
   const { data: notes = [] } = useInventoryNotes(id)
   const { data: inventoryPurchases = [] } = useInventoryPurchases(id, parseInt(filterYear))
+  const { data: customMetricDefinitions = [] } = useCustomMetricDefinitions()
   const updateKpiEntryMutation = useUpdateKpiEntry()
   const deleteKpiEntryMutation = useDeleteKpiEntry()
+  const deleteNoteMutation = useDeleteInventoryNote()
+  const updatePurchaseMutation = useUpdateInventoryPurchase()
+  const deletePurchaseMutation = useDeleteInventoryPurchase()
+  
+  // Filter to only active custom metrics
+  const activeCustomMetrics = useMemo(() => {
+    return customMetricDefinitions.filter(metric => metric.isActive)
+  }, [customMetricDefinitions])
 
   const validFilter = filterYear && !isNaN(parseInt(filterYear))
   const filterYearNum = validFilter ? parseInt(filterYear) : null
@@ -144,63 +241,85 @@ export default function TeamMemberDetail() {
     return filteredKpiEntries.filter((entry) => entry.kpiType === type)
   }
 
-  const parseMonth = (dateStr: string): number | null => {
-    if (!dateStr) return null
-    const isoMatch = dateStr.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/)
-    if (isoMatch) return parseInt(isoMatch[2]) - 1
-    const usMatch = dateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/)
-    if (usMatch) return parseInt(usMatch[1]) - 1
-    for (let i = 0; i < monthNames.length; i++) {
-      if (dateStr.includes(monthNames[i])) return i
+  // Get field type icon helper
+  const getFieldTypeIcon = (type: MetricField['type']) => {
+    switch (type) {
+      case 'date':
+        return CalendarDays
+      case 'text':
+        return Type
+      case 'upload':
+        return Upload
+      case 'dollarValue':
+        return DollarSign
+      case 'number':
+        return Hash
+      case 'image':
+        return Image
+      default:
+        return Type
     }
-    return null
   }
 
-  const getChartDataForKpi = (type: string) => {
-    const entries = getFilteredKpiEntriesByType(type)
-    const monthlyData: Record<number, number> = {}
-    for (let i = 0; i < 12; i++) {
-      monthlyData[i] = 0
-    }
-    entries.forEach((entry) => {
-      const month = parseMonth(entry.date)
-      if (month !== null && month >= 0 && month < 12) {
-        if (type === 'damages' && entry.cost) {
-          monthlyData[month] += parseFloat(entry.cost) || 0
-        } else {
-          monthlyData[month] += 1
-        }
-      }
-    })
-    return Object.entries(monthlyData).map(([monthIndex, value]) => ({
-      month: monthNames[parseInt(monthIndex)],
-      value: value,
+  const handleEditFieldChange = (fieldId: string, value: string) => {
+    setEditFieldValues((prev) => ({
+      ...prev,
+      [fieldId]: value,
     }))
   }
 
-  const getKpiColor = (type: string) => {
-    const kpi = kpiTypes.find(k => k.type === type)
-    const colorMap: Record<string, string> = {
-      'text-red-500': '#ef4444',
-      'text-orange-500': '#f97316',
-      'text-blue-500': '#3b82f6',
-      'text-red-600': '#dc2626',
-      'text-green-500': '#22c55e',
-      'text-yellow-500': '#eab308',
-      'text-purple-500': '#a855f7',
-    }
-    return colorMap[kpi?.color || 'text-primary'] || '#3b82f6'
-  }
-
-  const handleOpenKpiDialog = (type: string, name: string) => {
-    setSelectedKpi({ type, name })
-    setKpiDialogOpen(true)
-  }
 
   const handleEditKpiEntry = (entry: any) => {
     setEntryToEdit(entry)
-    setEditDescription(entry.description || '')
-    setEditCost(entry.cost || '')
+    
+    // Check if this is a custom metric entry
+    const customMetric = activeCustomMetrics.find(m => m.id === entry.kpiType)
+    
+    if (customMetric) {
+      // It's a custom metric entry
+      setEditingCustomMetric(customMetric)
+      
+      // Parse JSON from description
+      let parsedValues: Record<string, any> = {}
+      try {
+        parsedValues = JSON.parse(entry.description || '{}')
+      } catch {
+        // If parsing fails, try to use description as-is
+        parsedValues = { description: entry.description || '' }
+      }
+      
+      // Initialize field values from parsed JSON
+      const fieldValues: Record<string, string> = {}
+      customMetric.fields.forEach((field) => {
+        // Try to get value by field ID first, then by field name
+        fieldValues[field.id] = String(parsedValues[field.id] || parsedValues[field.name] || '')
+      })
+      
+      setEditFieldValues(fieldValues)
+      
+      // Find date field or use entry.date
+      const dateField = customMetric.fields.find((f) => f.type === 'date')
+      setEditEntryDate(dateField ? fieldValues[dateField.id] : entry.date || '')
+      
+      // Find dollarValue field for cost
+      const dollarValueField = customMetric.fields.find((f) => f.type === 'dollarValue')
+      if (dollarValueField && fieldValues[dollarValueField.id]) {
+        setEditCost(fieldValues[dollarValueField.id])
+      } else {
+        setEditCost(entry.cost || '')
+      }
+      
+      // Clear standard description/cost for custom metrics
+      setEditDescription('')
+    } else {
+      // It's a standard entry
+      setEditingCustomMetric(null)
+      setEditFieldValues({})
+      setEditEntryDate('')
+      setEditDescription(entry.description || '')
+      setEditCost(entry.cost || '')
+    }
+    
     setEditDialogOpen(true)
   }
 
@@ -211,16 +330,55 @@ export default function TeamMemberDetail() {
 
   const confirmEditEntry = () => {
     if (entryToEdit && id) {
-      updateKpiEntryMutation.mutate({
-        id: entryToEdit.id,
-        data: { description: editDescription, cost: editCost || undefined },
-        teamMemberId: id,
-      }, {
-        onSuccess: () => {
-          setEditDialogOpen(false)
-          setEntryToEdit(null)
-        }
-      })
+      if (editingCustomMetric) {
+        // Handle custom metric entry
+        // Find dollarValue field for cost
+        const dollarValueField = editingCustomMetric.fields.find((f) => f.type === 'dollarValue')
+        const cost = dollarValueField && editFieldValues[dollarValueField.id]
+          ? parseFloat(editFieldValues[dollarValueField.id]).toFixed(2)
+          : undefined
+        
+        // Reconstruct JSON from field values
+        const descriptionData: Record<string, any> = {}
+        editingCustomMetric.fields.forEach((field) => {
+          descriptionData[field.id] = editFieldValues[field.id] || ''
+          descriptionData[field.name] = editFieldValues[field.id] || '' // Also store by name for easier access
+          
+          // For image fields, also store the image URL if provided
+          if (field.type === 'image' && editFieldValues[`${field.id}_url`]) {
+            descriptionData[`${field.id}_url`] = editFieldValues[`${field.id}_url`]
+          }
+        })
+        
+        updateKpiEntryMutation.mutate({
+          id: entryToEdit.id,
+          data: {
+            description: JSON.stringify(descriptionData),
+            cost: cost,
+          },
+          teamMemberId: id,
+        }, {
+          onSuccess: () => {
+            setEditDialogOpen(false)
+            setEntryToEdit(null)
+            setEditingCustomMetric(null)
+            setEditFieldValues({})
+            setEditEntryDate('')
+          }
+        })
+      } else {
+        // Handle standard entry
+        updateKpiEntryMutation.mutate({
+          id: entryToEdit.id,
+          data: { description: editDescription, cost: editCost || undefined },
+          teamMemberId: id,
+        }, {
+          onSuccess: () => {
+            setEditDialogOpen(false)
+            setEntryToEdit(null)
+          }
+        })
+      }
     }
   }
 
@@ -233,6 +391,78 @@ export default function TeamMemberDetail() {
         onSuccess: () => {
           setDeleteDialogOpen(false)
           setEntryToDelete(null)
+        }
+      })
+    }
+  }
+
+  const handleEditNote = (note: any) => {
+    setNoteToEdit(note)
+    setNoteDialogOpen(true)
+  }
+
+  const handleDeleteNote = (noteId: string) => {
+    setNoteToDelete(noteId)
+    setNoteDeleteDialogOpen(true)
+  }
+
+  const confirmDeleteNote = () => {
+    if (noteToDelete && id) {
+      deleteNoteMutation.mutate({
+        id: noteToDelete,
+        teamMemberId: id,
+      }, {
+        onSuccess: () => {
+          setNoteDeleteDialogOpen(false)
+          setNoteToDelete(null)
+        }
+      })
+    }
+  }
+
+  const handleEditPurchase = (purchase: any) => {
+    setPurchaseToEdit(purchase)
+    setEditPurchaseDate(purchase.purchaseDate || '')
+    setEditPurchaseItems(purchase.itemsRaw || '')
+    setEditPurchaseCompleted(purchase.isCompleted || false)
+    setPurchaseEditDialogOpen(true)
+  }
+
+  const handleDeletePurchase = (purchaseId: string) => {
+    setPurchaseToDelete(purchaseId)
+    setPurchaseDeleteDialogOpen(true)
+  }
+
+  const confirmEditPurchase = () => {
+    if (purchaseToEdit && id) {
+      updatePurchaseMutation.mutate({
+        id: purchaseToEdit.id,
+        data: {
+          purchaseDate: editPurchaseDate,
+          itemsRaw: editPurchaseItems,
+          isCompleted: editPurchaseCompleted,
+        },
+        teamMemberId: id,
+        year: filterYearNum || undefined,
+      }, {
+        onSuccess: () => {
+          setPurchaseEditDialogOpen(false)
+          setPurchaseToEdit(null)
+        }
+      })
+    }
+  }
+
+  const confirmDeletePurchase = () => {
+    if (purchaseToDelete && id) {
+      deletePurchaseMutation.mutate({
+        id: purchaseToDelete,
+        teamMemberId: id,
+        year: filterYearNum || undefined,
+      }, {
+        onSuccess: () => {
+          setPurchaseDeleteDialogOpen(false)
+          setPurchaseToDelete(null)
         }
       })
     }
@@ -301,8 +531,31 @@ export default function TeamMemberDetail() {
               <Link to="/operations" className="text-gray-700 hover:text-gray-900 font-medium">
                 Operations
               </Link>
+              <Link to="/services" className="text-gray-700 hover:text-gray-900 font-medium">
+                Services
+              </Link>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              <Link
+                to="/settings"
+                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                title="Settings"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </Link>
               <button
                 onClick={handleSignOut}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-joy-pink border border-gray-300 rounded-lg hover:border-joy-pink transition-colors"
@@ -379,7 +632,7 @@ export default function TeamMemberDetail() {
                     )}
                   </div>
                 </div>
-                <button
+                {/* <button
                   onClick={handleEdit}
                   className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors flex items-center"
                   style={{ backgroundColor: PINK_COLOR }}
@@ -390,7 +643,7 @@ export default function TeamMemberDetail() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   Edit
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -399,124 +652,356 @@ export default function TeamMemberDetail() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Contact Information */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h2>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <div>
-                  <p className="text-sm text-gray-500">Email</p>
-                  <p className="text-gray-900">{member.email}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-                <div>
-                  <p className="text-sm text-gray-500">Phone</p>
-                  <p className="text-gray-900">{member.phone || 'Not provided'}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <div>
-                  <p className="text-sm text-gray-500">Address</p>
-                  <p className="text-gray-900">{member.address || 'Not provided'}</p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Contact Information</h2>
+              {editingSection !== 'contact' && (
+                <button
+                  onClick={() => handleStartEdit('contact')}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Edit Contact Information"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              )}
             </div>
+            {editingSection === 'contact' ? (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-500 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={editFormData.email || ''}
+                      onChange={(e) => handleFieldChange('email', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-500 mb-1">Phone</label>
+                    <input
+                      type="text"
+                      value={editFormData.phone || ''}
+                      onChange={(e) => handleFieldChange('phone', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-500 mb-1">Address</label>
+                    <textarea
+                      value={editFormData.address || ''}
+                      onChange={(e) => handleFieldChange('address', e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={updateMutation.isPending}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {updateMutation.isPending ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="text-gray-900">{member.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="text-gray-900">{member.phone || 'Not provided'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm text-gray-500">Address</p>
+                    <p className="text-gray-900">{member.address || 'Not provided'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Personal Information */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="text-sm text-gray-500">Birthday</p>
-                  <p className="text-gray-900">{member.birthday ? formatDate(member.birthday) : 'Not provided'}</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
+              {editingSection !== 'personal' && (
+                <button
+                  onClick={() => handleStartEdit('personal')}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Edit Personal Information"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {editingSection === 'personal' ? (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-500 mb-1">Birthday</label>
+                    <input
+                      type="date"
+                      value={editFormData.birthday || ''}
+                      onChange={(e) => handleFieldChange('birthday', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="text-sm text-gray-500">Primary Language</p>
-                  <p className="text-gray-900">{member.primaryLanguage || 'Not provided'}</p>
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-500 mb-1">Primary Language</label>
+                    <input
+                      type="text"
+                      value={editFormData.primaryLanguage || ''}
+                      onChange={(e) => handleFieldChange('primaryLanguage', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
-              </div>
-              {member.workStartDate && (
                 <div className="flex items-start gap-3">
                   <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <div>
-                    <p className="text-sm text-gray-500">Work Start Date</p>
-                    <p className="text-gray-900">{formatDate(member.workStartDate)}</p>
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-500 mb-1">Work Start Date</label>
+                    <input
+                      type="date"
+                      value={editFormData.workStartDate || ''}
+                      onChange={(e) => handleFieldChange('workStartDate', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
-              )}
-            </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={updateMutation.isPending}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {updateMutation.isPending ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm text-gray-500">Birthday</p>
+                    <p className="text-gray-900">{member.birthday ? formatDate(member.birthday) : 'Not provided'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm text-gray-500">Primary Language</p>
+                    <p className="text-gray-900">{member.primaryLanguage || 'Not provided'}</p>
+                  </div>
+                </div>
+                {member.workStartDate && (
+                  <div className="flex items-start gap-3">
+                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-gray-500">Work Start Date</p>
+                      <p className="text-gray-900">{formatDate(member.workStartDate)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Employment Details */}
-        {(member.trainingStartDate || member.trainingEndDate || member.workStartDate) && (
+        {(member.trainingStartDate || member.trainingEndDate || member.workStartDate || editingSection === 'employment') && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Employment Details
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {member.trainingStartDate && (
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Employment Details
+              </h2>
+              {editingSection !== 'employment' && (
+                <button
+                  onClick={() => handleStartEdit('employment')}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Edit Employment Details"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  <div>
-                    <p className="text-sm text-gray-500">Training Start Date</p>
-                    <p className="text-gray-900">{formatDate(member.trainingStartDate)}</p>
-                  </div>
-                </div>
-              )}
-              {member.trainingEndDate && (
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
-                  </svg>
-                  <div>
-                    <p className="text-sm text-gray-500">Training End Date</p>
-                    <p className="text-gray-900">{formatDate(member.trainingEndDate)}</p>
-                  </div>
-                </div>
-              )}
-              {member.workStartDate && (
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <p className="text-sm text-gray-500">Joining Date</p>
-                    <p className="text-gray-900">{formatDate(member.workStartDate)}</p>
-                  </div>
-                </div>
+                </button>
               )}
             </div>
+            {editingSection === 'employment' ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="flex items-start gap-3">
+                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                    </svg>
+                    <div className="flex-1">
+                      <label className="block text-sm text-gray-500 mb-1">Training Start Date</label>
+                      <input
+                        type="date"
+                        value={editFormData.trainingStartDate || ''}
+                        onChange={(e) => handleFieldChange('trainingStartDate', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                    </svg>
+                    <div className="flex-1">
+                      <label className="block text-sm text-gray-500 mb-1">Training End Date</label>
+                      <input
+                        type="date"
+                        value={editFormData.trainingEndDate || ''}
+                        onChange={(e) => handleFieldChange('trainingEndDate', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <div className="flex-1">
+                      <label className="block text-sm text-gray-500 mb-1">Joining Date</label>
+                      <input
+                        type="date"
+                        value={editFormData.workStartDate || ''}
+                        onChange={(e) => handleFieldChange('workStartDate', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={updateMutation.isPending}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {updateMutation.isPending ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {member.trainingStartDate && (
+                  <div className="flex items-start gap-3">
+                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-gray-500">Training Start Date</p>
+                      <p className="text-gray-900">{formatDate(member.trainingStartDate)}</p>
+                    </div>
+                  </div>
+                )}
+                {member.trainingEndDate && (
+                  <div className="flex items-start gap-3">
+                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-gray-500">Training End Date</p>
+                      <p className="text-gray-900">{formatDate(member.trainingEndDate)}</p>
+                    </div>
+                  </div>
+                )}
+                {member.workStartDate && (
+                  <div className="flex items-start gap-3">
+                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-gray-500">Joining Date</p>
+                      <p className="text-gray-900">{formatDate(member.workStartDate)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -565,29 +1050,40 @@ export default function TeamMemberDetail() {
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold mb-4">Metrics</h3>
                   <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {kpiTypes.map((kpi) => {
-                      const entries = getFilteredKpiEntriesByType(kpi.type)
-                      const isSelected = selectedKpi?.type === kpi.type
-                      return (
-                        <div
-                          key={kpi.type}
-                          onClick={() => setSelectedKpi({ type: kpi.type, name: kpi.name })}
-                          className={`p-3 rounded-lg cursor-pointer transition-all border ${
-                            isSelected
-                              ? 'bg-blue-50 border-blue-500'
-                              : 'bg-white hover:bg-gray-50 border-gray-200'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg">{kpi.icon}</span>
-                              <span className="text-sm font-medium">{kpi.name}</span>
+                    {activeCustomMetrics.length > 0 ? (
+                      activeCustomMetrics.map((metric) => {
+                        const entries = getFilteredKpiEntriesByType(metric.id)
+                        const isSelected = selectedKpi?.type === metric.id
+                        // const metricColor = getCustomMetricColor(metric.color)
+                        return (
+                          <div
+                            key={metric.id}
+                            onClick={() => setSelectedKpi({ type: metric.id, name: metric.name, isCustom: true, customMetric: metric })}
+                            className={`p-3 rounded-lg cursor-pointer transition-all border ${
+                              isSelected
+                                ? 'bg-blue-50 border-blue-500'
+                                : 'bg-white hover:bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {/* <div 
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: metricColor }}
+                                /> */}
+                                <span className="text-sm font-medium">{metric.name}</span>
+                              </div>
+                              <span className="px-2 py-1 bg-gray-100 rounded text-xs">{entries.length}</span>
                             </div>
-                            <span className="px-2 py-1 bg-gray-100 rounded text-xs">{entries.length}</span>
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-gray-500 italic">No custom metrics defined yet.</p>
+                        <p className="text-xs text-gray-400 mt-1">Create custom metrics in the Services section.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -606,15 +1102,41 @@ export default function TeamMemberDetail() {
                         return (
                           <div
                             key={note.id}
-                            onClick={() => setSelectedNote(note)}
-                            className={`p-3 rounded-lg cursor-pointer transition-all border ${
+                            className={`p-3 rounded-lg transition-all border ${
                               isSelected
                                 ? 'bg-blue-50 border-blue-500'
                                 : 'bg-white hover:bg-gray-50 border-gray-200'
                             }`}
                           >
-                            <p className="text-xs text-gray-500 mb-1">{note.nyTimestamp}</p>
-                            <p className="text-sm line-clamp-2">{note.noteText}</p>
+                            <div
+                              onClick={() => setSelectedNote(note)}
+                              className="cursor-pointer"
+                            >
+                              <p className="text-xs text-gray-500 mb-1">{note.nyTimestamp}</p>
+                              <p className="text-sm line-clamp-2">{note.noteText}</p>
+                            </div>
+                            <div className="flex items-center justify-end gap-2 mt-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditNote(note)
+                                }}
+                                className="p-1 text-gray-500 hover:text-blue-600"
+                                disabled={deleteNoteMutation.isPending}
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteNote(note.id)
+                                }}
+                                className="p-1 text-gray-500 hover:text-red-600"
+                                disabled={deleteNoteMutation.isPending}
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
                         )
                       })
@@ -637,20 +1159,46 @@ export default function TeamMemberDetail() {
                         return (
                           <div
                             key={purchase.id}
-                            onClick={() => setSelectedPurchase(purchase)}
-                            className={`p-3 rounded-lg cursor-pointer transition-all border ${
+                            className={`p-3 rounded-lg transition-all border ${
                               isSelected
                                 ? 'bg-blue-50 border-blue-500'
                                 : 'bg-white hover:bg-gray-50 border-gray-200'
                             }`}
                           >
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs text-gray-500">{purchase.purchaseDate}</p>
-                              {purchase.isCompleted && (
-                                <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Completed</span>
-                              )}
+                            <div
+                              onClick={() => setSelectedPurchase(purchase)}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-xs text-gray-500">{purchase.purchaseDate}</p>
+                                {purchase.isCompleted && (
+                                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Completed</span>
+                                )}
+                              </div>
+                              <p className="text-sm line-clamp-2">{purchase.itemsRaw}</p>
                             </div>
-                            <p className="text-sm line-clamp-2">{purchase.itemsRaw}</p>
+                            <div className="flex items-center justify-end gap-2 mt-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditPurchase(purchase)
+                                }}
+                                className="p-1 text-gray-500 hover:text-blue-600"
+                                disabled={updatePurchaseMutation.isPending || deletePurchaseMutation.isPending}
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeletePurchase(purchase.id)
+                                }}
+                                className="p-1 text-gray-500 hover:text-red-600"
+                                disabled={updatePurchaseMutation.isPending || deletePurchaseMutation.isPending}
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
                         )
                       })
@@ -682,9 +1230,12 @@ export default function TeamMemberDetail() {
                       </option>
                     ))}
                   </select>
-                  {activeTab === 'metrics' && selectedKpi && (
+                  {activeTab === 'metrics' && selectedKpi && selectedKpi.customMetric && (
                     <button
-                      onClick={() => handleOpenKpiDialog(selectedKpi.type, selectedKpi.name)}
+                      onClick={() => {
+                        setSelectedCustomMetric(selectedKpi.customMetric!)
+                        setCustomMetricDialogOpen(true)
+                      }}
                       className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
                     >
                       Add Entry
@@ -708,60 +1259,37 @@ export default function TeamMemberDetail() {
                       <p className="text-gray-500">Select an item from the list to view its entries</p>
                     </div>
                   ) : (
-                    <div className="flex flex-col h-full">
-                      <div className="h-1/2 min-h-[180px] mb-4">
-                        {getChartDataForKpi(selectedKpi.type).every(d => d.value === 0) ? (
-                          <div className="flex items-center justify-center h-full bg-gray-50 rounded-lg border border-dashed">
-                            <p className="text-gray-500 text-sm">No data to display</p>
-                          </div>
-                        ) : (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={getChartDataForKpi(selectedKpi.type)}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                              <XAxis dataKey="month" stroke="#6b7280" tick={{ fontSize: 11 }} />
-                              <YAxis
-                                stroke="#6b7280"
-                                tick={{ fontSize: 11 }}
-                                allowDecimals={selectedKpi.type === 'damages'}
-                                tickFormatter={selectedKpi.type === 'damages' ? (value) => `$${value}` : undefined}
-                              />
-                              <Tooltip
-                                formatter={(value: any) => [
-                                  selectedKpi.type === 'damages' ? `$${value}` : value,
-                                  selectedKpi.type === 'damages' ? 'Cost' : 'Count'
-                                ]}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="value"
-                                stroke={getKpiColor(selectedKpi.type)}
-                                strokeWidth={2}
-                                dot={{ r: 5, fill: getKpiColor(selectedKpi.type), strokeWidth: 2 }}
-                                activeDot={{ r: 7 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        )}
-                      </div>
-                      <div className="h-1/2 flex-1 overflow-y-auto">
+                    <div className="h-full overflow-y-auto">
+                      {getFilteredKpiEntriesByType(selectedKpi.type).length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500 italic">No entries for {selectedKpi.name} in {filterYear}</p>
+                          <button
+                            onClick={() => {
+                              if (selectedKpi.customMetric) {
+                                setSelectedCustomMetric(selectedKpi.customMetric)
+                                setCustomMetricDialogOpen(true)
+                              }
+                            }}
+                            className="mt-4 px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                          >
+                            Add Entry
+                          </button>
+                        </div>
+                      ) : (
                         <div className="space-y-3">
-                          {getFilteredKpiEntriesByType(selectedKpi.type).length === 0 ? (
-                            <div className="text-center py-8">
-                              <p className="text-gray-500 italic">No entries for {selectedKpi.name} in {filterYear}</p>
-                              <button
-                                onClick={() => handleOpenKpiDialog(selectedKpi.type, selectedKpi.name)}
-                                className="mt-4 px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                              >
-                                Add Entry
-                              </button>
-                            </div>
-                          ) : (
-                            getFilteredKpiEntriesByType(selectedKpi.type).map((entry) => (
+                          {getFilteredKpiEntriesByType(selectedKpi.type).map((entry) => {
+                            let fieldValues: Record<string, any> = {}
+                            try {
+                              fieldValues = JSON.parse(entry.description || '{}')
+                            } catch {
+                              fieldValues = { description: entry.description }
+                            }
+                            return (
                               <div key={entry.id} className="p-4 bg-gray-50 rounded-lg border">
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between mb-2">
                                   <p className="text-sm font-medium">{entry.date}</p>
                                   <div className="flex items-center gap-2">
-                                    {selectedKpi.type === 'damages' && entry.cost && (
+                                    {entry.cost && (
                                       <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">
                                         ${parseFloat(entry.cost).toFixed(2)}
                                       </span>
@@ -782,12 +1310,116 @@ export default function TeamMemberDetail() {
                                     </button>
                                   </div>
                                 </div>
-                                <p className="text-sm text-gray-600 mt-1">{entry.description}</p>
+                                <div className="space-y-1">
+                                  {selectedKpi.customMetric?.fields.map((field) => {
+                                    // Try multiple ways to extract the value
+                                    const value = fieldValues[field.id] || fieldValues[field.name] || ''
+                                    
+                                    // Check if this is an image field
+                                    const isImageField = field.type === 'image'
+                                    
+                                    // For image fields, check for image URL first (priority)
+                                    let imageUrl = ''
+                                    if (isImageField) {
+                                      imageUrl = fieldValues[`${field.id}_url`] || ''
+                                    }
+                                    
+                                    // Validate value exists and is a string (or imageUrl exists for image fields)
+                                    if (!value || typeof value !== 'string' || value.trim() === '') {
+                                      // For image fields, if we have an imageUrl, still show it
+                                      if (isImageField && imageUrl && imageUrl.trim() !== '') {
+                                        // Continue with imageUrl
+                                      } else {
+                                        return null
+                                      }
+                                    }
+                                    
+                                    const stringValue = String(value).trim()
+                                    
+                                    // Check for different image formats
+                                    const isUrl = stringValue.startsWith('http://') || stringValue.startsWith('https://')
+                                    const isBase64 = stringValue.startsWith('data:image/')
+                                    
+                                    // Check if value looks like an image filename (has image extension)
+                                    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico']
+                                    const isFilename = isImageField && imageExtensions.some(ext => 
+                                      stringValue.toLowerCase().endsWith(ext)
+                                    )
+                                    
+                                    // Determine if we should display as image
+                                    const isImageValue = isImageField && (imageUrl || isUrl || isBase64 || isFilename)
+                                    
+                                    // Construct image URL - prioritize explicit imageUrl, then check value format
+                                    let imageSrc = imageUrl || stringValue
+                                    if (isImageField && !imageUrl) {
+                                      if (isUrl || isBase64) {
+                                        // Already a URL or base64, use as-is
+                                        imageSrc = stringValue
+                                      } else if (isFilename) {
+                                        // Try to construct URL from filename
+                                        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+                                        const baseUrlWithoutApi = apiBaseUrl.replace('/api', '').replace('/api/', '')
+                                        
+                                        // Try different possible paths for uploaded images
+                                        const possiblePaths = [
+                                          `/uploads/${stringValue}`, // Relative path
+                                          `${baseUrlWithoutApi}/uploads/${stringValue}`, // Absolute path from API base
+                                          `${baseUrlWithoutApi}/images/${stringValue}`, // Alternative images directory
+                                          `${baseUrlWithoutApi}/public/${stringValue}`, // Public directory
+                                          `/images/${stringValue}`, // Alternative relative path
+                                        ]
+                                        
+                                        // Use the first path (can be enhanced to test which one works)
+                                        imageSrc = possiblePaths[0]
+                                      }
+                                    }
+                                    
+                                    return (
+                                      <div key={field.id} className="text-sm">
+                                        <span className="font-medium text-gray-700">{field.name}:</span>{' '}
+                                        {isImageValue ? (
+                                          <div className="mt-2">
+                                            <img 
+                                              src={imageSrc} 
+                                              alt={field.name}
+                                              className="max-w-full h-auto rounded-lg border border-gray-200 max-h-64 object-contain"
+                                              onError={(e) => {
+                                                // Fallback to text if image fails to load
+                                                const target = e.target as HTMLImageElement
+                                                const parent = target.parentElement
+                                                if (parent && !parent.querySelector('.image-fallback')) {
+                                                  target.style.display = 'none'
+                                                  const fallback = document.createElement('span')
+                                                  fallback.className = 'image-fallback text-gray-600 text-xs italic'
+                                                  // Show original filename if URL construction failed
+                                                  const displayValue = isFilename && imageSrc !== stringValue 
+                                                    ? `${stringValue} (URL: ${imageSrc})` 
+                                                    : stringValue
+                                                  fallback.textContent = `(Image failed to load: ${displayValue.substring(0, 50)}...)`
+                                                  parent.appendChild(fallback)
+                                                }
+                                              }}
+                                              onLoad={(e) => {
+                                                // Image loaded successfully
+                                                const target = e.target as HTMLImageElement
+                                                if (target) {
+                                                  target.style.display = 'block'
+                                                }
+                                              }}
+                                            />
+                                          </div>
+                                        ) : (
+                                          <span className="text-gray-600">{stringValue}</span>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
                               </div>
-                            ))
-                          )}
+                            )
+                          })}
                         </div>
-                      </div>
+                      )}
                     </div>
                   )
                 ) : activeTab === 'notes' ? (
@@ -842,61 +1474,320 @@ export default function TeamMemberDetail() {
 
       
       {/* Dialogs */}
-      {kpiDialogOpen && selectedKpi && (
-        <KpiEntryDialog
-          open={kpiDialogOpen}
-          onClose={() => {
-            setKpiDialogOpen(false)
-            setSelectedKpi(null)
-          }}
-          teamMemberId={id || ''}
-          kpiType={selectedKpi.type}
-          kpiTypeName={selectedKpi.name}
-        />
-      )}
-
       {noteDialogOpen && (
         <NoteEntryDialog
           open={noteDialogOpen}
-          onClose={() => setNoteDialogOpen(false)}
+          onClose={() => {
+            setNoteDialogOpen(false)
+            setNoteToEdit(null)
+          }}
           teamMemberId={id || ''}
           teamMemberName={member?.name}
+          note={noteToEdit}
         />
+      )}
+
+      {customMetricDialogOpen && selectedCustomMetric && (
+        <CustomMetricEntryDialog
+          open={customMetricDialogOpen}
+          onClose={() => {
+            setCustomMetricDialogOpen(false)
+            setSelectedCustomMetric(null)
+          }}
+          teamMemberId={id || ''}
+          customMetric={selectedCustomMetric}
+        />
+      )}
+
+      {/* Delete Note Confirmation Dialog */}
+      {noteDeleteDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-xl font-semibold mb-4">Delete Note</h2>
+            <p className="text-gray-600 mb-6">Are you sure you want to delete this note? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setNoteDeleteDialogOpen(false)
+                  setNoteToDelete(null)
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteNote}
+                disabled={deleteNoteMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteNoteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Purchase Dialog */}
+      {purchaseEditDialogOpen && purchaseToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-xl font-semibold mb-4">Edit Purchase</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Date</label>
+                <input
+                  type="text"
+                  value={editPurchaseDate}
+                  onChange={(e) => setEditPurchaseDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="MM/DD/YYYY"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Items</label>
+                <textarea
+                  value={editPurchaseItems}
+                  onChange={(e) => setEditPurchaseItems(e.target.value)}
+                  rows={5}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="Enter purchase items..."
+                />
+              </div>
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editPurchaseCompleted}
+                    onChange={(e) => setEditPurchaseCompleted(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Completed</span>
+                </label>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setPurchaseEditDialogOpen(false)
+                    setPurchaseToEdit(null)
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmEditPurchase}
+                  disabled={updatePurchaseMutation.isPending}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {updatePurchaseMutation.isPending ? 'Updating...' : 'Update'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Purchase Confirmation Dialog */}
+      {purchaseDeleteDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-xl font-semibold mb-4">Delete Purchase</h2>
+            <p className="text-gray-600 mb-6">Are you sure you want to delete this purchase? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setPurchaseDeleteDialogOpen(false)
+                  setPurchaseToDelete(null)
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeletePurchase}
+                disabled={deletePurchaseMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {deletePurchaseMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit KPI Entry Dialog */}
       {editDialogOpen && entryToEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h2 className="text-xl font-semibold mb-4">Edit Entry</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              {entryToEdit.kpiType === 'damages' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cost ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={editCost}
-                    onChange={(e) => setEditCost(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
+          <div className={`bg-white rounded-lg shadow-xl ${editingCustomMetric ? 'max-w-2xl' : 'max-w-md'} w-full mx-4 ${editingCustomMetric ? 'max-h-[90vh] overflow-y-auto' : 'p-6'}`}>
+            <div className={`${editingCustomMetric ? 'sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10' : ''}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold">
+                    {editingCustomMetric ? `Edit ${editingCustomMetric.name} Entry` : 'Edit Entry'}
+                  </h2>
+                  {editingCustomMetric?.description && (
+                    <p className="text-sm text-gray-500 mt-1">{editingCustomMetric.description}</p>
+                  )}
                 </div>
-              )}
-              <div className="flex justify-end gap-3 pt-4">
                 <button
                   onClick={() => {
                     setEditDialogOpen(false)
                     setEntryToEdit(null)
+                    setEditingCustomMetric(null)
+                    setEditFieldValues({})
+                    setEditEntryDate('')
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className={`${editingCustomMetric ? 'p-6' : ''} space-y-4`}>
+              {editingCustomMetric ? (
+                // Custom metric entry form
+                <>
+                  {/* Date field (if not in custom fields, show separate date input) */}
+                  {!editingCustomMetric.fields.find((f) => f.type === 'date') && (
+                    <div className="space-y-2">
+                      <label htmlFor="edit-entry-date" className="block text-sm font-medium text-gray-700">
+                        Date <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="edit-entry-date"
+                        type="date"
+                        value={editEntryDate}
+                        onChange={(e) => setEditEntryDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Dynamic fields based on custom metric definition */}
+                  {editingCustomMetric.fields.map((field) => {
+                    const Icon = getFieldTypeIcon(field.type)
+                    const value = editFieldValues[field.id] || ''
+
+                    return (
+                      <div key={field.id} className="space-y-2">
+                        <label htmlFor={`edit-${field.id}`} className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          {field.name}
+                          {field.required && <span className="text-red-500">*</span>}
+                        </label>
+
+                        {field.type === 'date' && (
+                          <input
+                            id={`edit-${field.id}`}
+                            type="date"
+                            value={value}
+                            onChange={(e) => handleEditFieldChange(field.id, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        )}
+
+                        {field.type === 'text' && (
+                          <textarea
+                            id={`edit-${field.id}`}
+                            value={value}
+                            onChange={(e) => handleEditFieldChange(field.id, e.target.value)}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder={`Enter ${field.name.toLowerCase()}...`}
+                          />
+                        )}
+
+                        {(field.type === 'dollarValue' || field.type === 'number') && (
+                          <input
+                            id={`edit-${field.id}`}
+                            type="number"
+                            step={field.type === 'dollarValue' ? '0.01' : '1'}
+                            min="0"
+                            value={value}
+                            onChange={(e) => handleEditFieldChange(field.id, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder={field.type === 'dollarValue' ? '0.00' : '0'}
+                          />
+                        )}
+
+                        {(field.type === 'upload' || field.type === 'image') && (
+                          <div className="space-y-2">
+                            <div>
+                              <input
+                                id={`edit-${field.id}`}
+                                type="file"
+                                accept={field.type === 'image' ? 'image/*' : '*'}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) {
+                                    handleEditFieldChange(field.id, file.name)
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              {value && (
+                                <p className="mt-1 text-sm text-gray-500">Selected: {value}</p>
+                              )}
+                            </div>
+                            {field.type === 'image' && (
+                              <div>
+                                <label htmlFor={`edit-${field.id}_url`} className="block text-sm font-medium text-gray-700 mb-1">
+                                  Image URL (Optional)
+                                </label>
+                                <input
+                                  id={`edit-${field.id}_url`}
+                                  type="url"
+                                  value={editFieldValues[`${field.id}_url`] || ''}
+                                  onChange={(e) => handleEditFieldChange(`${field.id}_url`, e.target.value)}
+                                  placeholder="https://example.com/image.jpg"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="mt-1 text-xs text-gray-500">
+                                  Enter a direct URL to the image. This will be used for display if provided.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </>
+              ) : (
+                // Standard entry form
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  {entryToEdit.kpiType === 'damages' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Cost ($)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editCost}
+                        onChange={(e) => setEditCost(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setEditDialogOpen(false)
+                    setEntryToEdit(null)
+                    setEditingCustomMetric(null)
+                    setEditFieldValues({})
+                    setEditEntryDate('')
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
                 >

@@ -18,6 +18,12 @@ export interface CreateInventoryNoteData {
   teamMemberId?: string | null
 }
 
+export interface UpdateInventoryNoteData {
+  noteText?: string
+  nyTimestamp?: string
+  noteType?: string
+}
+
 // Fetch inventory notes for a team member
 export function useInventoryNotes(teamMemberId: string | undefined) {
   return useQuery<InventoryNote[]>({
@@ -47,6 +53,45 @@ export function useCreateInventoryNote() {
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to add note'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Update inventory note mutation
+export function useUpdateInventoryNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation<InventoryNote, Error, { id: string; data: UpdateInventoryNoteData; teamMemberId: string }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.put<InventoryNote>(`/inventory/notes/${id}`, data)
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/team-members', variables.teamMemberId, 'notes'] })
+      toast.success('Note updated successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update note'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Delete inventory note mutation
+export function useDeleteInventoryNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, { id: string; teamMemberId: string }>({
+    mutationFn: async ({ id }) => {
+      await api.delete(`/inventory/notes/${id}`)
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/team-members', variables.teamMemberId, 'notes'] })
+      toast.success('Note deleted successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete note'
       toast.error(errorMessage)
     },
   })

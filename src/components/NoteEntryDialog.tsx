@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useCreateInventoryNote } from '../features/inventory-notes/inventoryNotesApi'
-import type { CreateInventoryNoteData } from '../features/inventory-notes/inventoryNotesApi'
+import { useCreateInventoryNote, useUpdateInventoryNote } from '../features/inventory-notes/inventoryNotesApi'
+import type { CreateInventoryNoteData, InventoryNote } from '../features/inventory-notes/inventoryNotesApi'
 
 interface NoteEntryDialogProps {
   open: boolean
   onClose: () => void
   teamMemberId: string
   teamMemberName?: string
+  note?: InventoryNote | null
 }
 
 export default function NoteEntryDialog({
@@ -14,17 +15,24 @@ export default function NoteEntryDialog({
   onClose,
   teamMemberId,
   teamMemberName,
+  note,
 }: NoteEntryDialogProps) {
   const createMutation = useCreateInventoryNote()
+  const updateMutation = useUpdateInventoryNote()
   const [noteText, setNoteText] = useState('')
   const [error, setError] = useState('')
+  const isEditMode = !!note
 
   useEffect(() => {
     if (open) {
-      setNoteText('')
+      if (note) {
+        setNoteText(note.noteText)
+      } else {
+        setNoteText('')
+      }
       setError('')
     }
-  }, [open])
+  }, [open, note])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,29 +42,48 @@ export default function NoteEntryDialog({
       return
     }
 
-    // Generate nyTimestamp (NY timezone timestamp)
-    const now = new Date()
-    const nyTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-    const nyTimestamp = nyTime.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    if (isEditMode && note) {
+      // Update existing note
+      updateMutation.mutate(
+        {
+          id: note.id,
+          data: {
+            noteText: noteText.trim(),
+          },
+          teamMemberId,
+        },
+        {
+          onSuccess: () => {
+            onClose()
+          },
+        }
+      )
+    } else {
+      // Create new note
+      // Generate nyTimestamp (NY timezone timestamp)
+      const now = new Date()
+      const nyTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const nyTimestamp = nyTime.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
 
-    const submitData: CreateInventoryNoteData = {
-      noteText: noteText.trim(),
-      nyTimestamp,
-      noteType: 'technician',
-      teamMemberId,
+      const submitData: CreateInventoryNoteData = {
+        noteText: noteText.trim(),
+        nyTimestamp,
+        noteType: 'technician',
+        teamMemberId,
+      }
+
+      createMutation.mutate(submitData, {
+        onSuccess: () => {
+          onClose()
+        },
+      })
     }
-
-    createMutation.mutate(submitData, {
-      onSuccess: () => {
-        onClose()
-      },
-    })
   }
 
   if (!open) return null
@@ -64,9 +91,9 @@ export default function NoteEntryDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <h2 className="text-xl font-semibold mb-2">Add Note</h2>
+        <h2 className="text-xl font-semibold mb-2">{isEditMode ? 'Edit Note' : 'Add Note'}</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Add a new note for {teamMemberName || 'this team member'}
+          {isEditMode ? 'Edit the note' : `Add a new note for ${teamMemberName || 'this team member'}`}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -99,10 +126,16 @@ export default function NoteEntryDialog({
             </button>
             <button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
-              {createMutation.isPending ? 'Adding...' : 'Add Note'}
+              {isEditMode
+                ? updateMutation.isPending
+                  ? 'Updating...'
+                  : 'Update Note'
+                : createMutation.isPending
+                ? 'Adding...'
+                : 'Add Note'}
             </button>
           </div>
         </form>
