@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
@@ -9,7 +9,8 @@ import { useInventoryPurchases, useUpdateInventoryPurchase, useDeleteInventoryPu
 import UserFormDrawer from '../components/UserFormDrawer'
 import NoteEntryDialog from '../components/NoteEntryDialog'
 import CustomMetricEntryDialog from '../components/CustomMetricEntryDialog'
-import { CalendarDays, Type, Upload, DollarSign, Hash, Image, X } from 'lucide-react'
+import { CalendarDays, Type, Upload, DollarSign, Hash, Image, X, Edit, TrendingUp, StickyNote, Package, Pencil, Trash2 } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 function getCurrentYear(): number {
   return new Date().getFullYear()
@@ -46,6 +47,45 @@ function formatDate(dateString: string): string {
   } catch {
     return dateString
   }
+}
+
+const compressImage = (file: File, maxWidth: number = 800, maxHeight: number = 800, quality: number = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = document.createElement('img')
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        
+        // Calculate new dimensions
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width
+            width = maxWidth
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height
+            height = maxHeight
+          }
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, width, height)
+        
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality)
+        resolve(compressedBase64)
+      }
+      img.onerror = reject
+      img.src = e.target?.result as string
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 export default function TeamMemberDetail() {
@@ -237,8 +277,97 @@ export default function TeamMemberDetail() {
     return notes.filter(note => matchesYear(note.nyTimestamp))
   }, [notes, filterYear, validFilter])
 
+  // Sync selectedNote with updated notes from the notes array
+  useEffect(() => {
+    if (selectedNote && notes.length > 0) {
+      const updatedNote = notes.find(n => n.id === selectedNote.id)
+      if (updatedNote) {
+        // Update if noteText or nyTimestamp changed
+        if (updatedNote.noteText !== selectedNote.noteText || updatedNote.nyTimestamp !== selectedNote.nyTimestamp) {
+          setSelectedNote(updatedNote)
+        }
+      }
+    }
+  }, [notes]) // Only depend on notes to avoid infinite loops
+
   const getFilteredKpiEntriesByType = (type: string) => {
     return filteredKpiEntries.filter((entry) => entry.kpiType === type)
+  }
+
+  // Chart data preparation
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  const parseMonth = (dateStr: string): number | null => {
+    if (!dateStr) return null
+    
+    const isoMatch = dateStr.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/)
+    if (isoMatch) {
+      return parseInt(isoMatch[2]) - 1
+    }
+    
+    const usMatch = dateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/)
+    if (usMatch) {
+      return parseInt(usMatch[1]) - 1
+    }
+    
+    for (let i = 0; i < monthNames.length; i++) {
+      if (dateStr.includes(monthNames[i])) {
+        return i
+      }
+    }
+    
+    return null
+  }
+
+  const getChartDataForKpi = (type: string) => {
+    const entries = getFilteredKpiEntriesByType(type)
+    const monthlyData: Record<number, number> = {}
+    
+    // Initialize all months to 0
+    for (let i = 0; i < 12; i++) {
+      monthlyData[i] = 0
+    }
+    
+    // Check if this metric has a dollarValue field
+    const customMetric = activeCustomMetrics.find(m => m.id === type)
+    const hasDollarValueField = customMetric?.fields.some(f => f.type === 'dollarValue')
+    
+    entries.forEach((entry) => {
+      const month = parseMonth(entry.date)
+      if (month !== null && month >= 0 && month < 12) {
+        if (hasDollarValueField && entry.cost) {
+          // Sum dollar values
+          monthlyData[month] += parseFloat(entry.cost) || 0
+        } else {
+          // Count entries
+          monthlyData[month] += 1
+        }
+      }
+    })
+    
+    const chartData = Object.entries(monthlyData)
+      .map(([monthIndex, value]) => ({
+        month: monthNames[parseInt(monthIndex)],
+        value: value,
+      }))
+    
+    return chartData
+  }
+
+  const getMetricColor = (metric: CustomMetricDefinition | undefined): string => {
+    if (!metric) return '#3b82f6' // Default blue
+    
+    const colorMap: Record<string, string> = {
+      red: '#ef4444',
+      orange: '#f97316',
+      yellow: '#eab308',
+      green: '#22c55e',
+      blue: '#3b82f6',
+      purple: '#a855f7',
+      pink: '#ec4899',
+    }
+    
+    return colorMap[metric.color || 'blue'] || '#3b82f6'
   }
 
   // Get field type icon helper
@@ -343,11 +472,6 @@ export default function TeamMemberDetail() {
         editingCustomMetric.fields.forEach((field) => {
           descriptionData[field.id] = editFieldValues[field.id] || ''
           descriptionData[field.name] = editFieldValues[field.id] || '' // Also store by name for easier access
-          
-          // For image fields, also store the image URL if provided
-          if (field.type === 'image' && editFieldValues[`${field.id}_url`]) {
-            descriptionData[`${field.id}_url`] = editFieldValues[`${field.id}_url`]
-          }
         })
         
         updateKpiEntryMutation.mutate({
@@ -538,7 +662,7 @@ export default function TeamMemberDetail() {
             <div className="flex items-center gap-3">
               <Link
                 to="/settings"
-                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                className="p-2 text-gray-800 hover:text-gray-900 transition-colors"
                 title="Settings"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -571,7 +695,7 @@ export default function TeamMemberDetail() {
         <div className="mb-6">
           <Link
             to="/operations/team"
-            className="inline-flex items-center text-gray-600 hover:text-gray-900"
+            className="inline-flex items-center text-gray-800 hover:text-gray-900"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -632,18 +756,16 @@ export default function TeamMemberDetail() {
                     )}
                   </div>
                 </div>
-                {/* <button
-                  onClick={handleEdit}
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors flex items-center"
-                  style={{ backgroundColor: PINK_COLOR }}
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors flex items-center gap-2"
+                  style={{ backgroundColor: '#E91E63' }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#C2185B')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = PINK_COLOR)}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#E91E63')}
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
+                  <Edit className="h-4 w-4" />
                   Edit
-                </button> */}
+                </button>
               </div>
             </div>
           </div>
@@ -657,23 +779,21 @@ export default function TeamMemberDetail() {
               {editingSection !== 'contact' && (
                 <button
                   onClick={() => handleStartEdit('contact')}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-800 hover:text-gray-900 transition-colors"
                   title="Edit Contact Information"
                 >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
+                  <Pencil className="h-4 w-4" />
                 </button>
               )}
             </div>
             {editingSection === 'contact' ? (
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   <div className="flex-1">
-                    <label className="block text-sm text-gray-500 mb-1">Email</label>
+                    <label className="block text-sm text-gray-800 mb-1">Email</label>
                     <input
                       type="email"
                       value={editFormData.email || ''}
@@ -683,11 +803,11 @@ export default function TeamMemberDetail() {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
                   <div className="flex-1">
-                    <label className="block text-sm text-gray-500 mb-1">Phone</label>
+                    <label className="block text-sm text-gray-800 mb-1">Phone</label>
                     <input
                       type="text"
                       value={editFormData.phone || ''}
@@ -697,12 +817,12 @@ export default function TeamMemberDetail() {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   <div className="flex-1">
-                    <label className="block text-sm text-gray-500 mb-1">Address</label>
+                    <label className="block text-sm text-gray-800 mb-1">Address</label>
                     <textarea
                       value={editFormData.address || ''}
                       onChange={(e) => handleFieldChange('address', e.target.value)}
@@ -730,30 +850,30 @@ export default function TeamMemberDetail() {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   <div>
-                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="text-sm text-gray-800">Email</p>
                     <p className="text-gray-900">{member.email}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
                   <div>
-                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="text-sm text-gray-800">Phone</p>
                     <p className="text-gray-900">{member.phone || 'Not provided'}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   <div>
-                    <p className="text-sm text-gray-500">Address</p>
+                    <p className="text-sm text-gray-800">Address</p>
                     <p className="text-gray-900">{member.address || 'Not provided'}</p>
                   </div>
                 </div>
@@ -768,23 +888,21 @@ export default function TeamMemberDetail() {
               {editingSection !== 'personal' && (
                 <button
                   onClick={() => handleStartEdit('personal')}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-800 hover:text-gray-900 transition-colors"
                   title="Edit Personal Information"
                 >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
+                  <Pencil className="h-4 w-4" />
                 </button>
               )}
             </div>
             {editingSection === 'personal' ? (
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="flex-1">
-                    <label className="block text-sm text-gray-500 mb-1">Birthday</label>
+                    <label className="block text-sm text-gray-800 mb-1">Birthday</label>
                     <input
                       type="date"
                       value={editFormData.birthday || ''}
@@ -794,11 +912,11 @@ export default function TeamMemberDetail() {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="flex-1">
-                    <label className="block text-sm text-gray-500 mb-1">Primary Language</label>
+                    <label className="block text-sm text-gray-800 mb-1">Primary Language</label>
                     <input
                       type="text"
                       value={editFormData.primaryLanguage || ''}
@@ -808,11 +926,11 @@ export default function TeamMemberDetail() {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <div className="flex-1">
-                    <label className="block text-sm text-gray-500 mb-1">Work Start Date</label>
+                    <label className="block text-sm text-gray-800 mb-1">Work Start Date</label>
                     <input
                       type="date"
                       value={editFormData.workStartDate || ''}
@@ -840,30 +958,30 @@ export default function TeamMemberDetail() {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <p className="text-sm text-gray-500">Birthday</p>
+                    <p className="text-sm text-gray-800">Birthday</p>
                     <p className="text-gray-900">{member.birthday ? formatDate(member.birthday) : 'Not provided'}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <p className="text-sm text-gray-500">Primary Language</p>
+                    <p className="text-sm text-gray-800">Primary Language</p>
                     <p className="text-gray-900">{member.primaryLanguage || 'Not provided'}</p>
                   </div>
                 </div>
                 {member.workStartDate && (
                   <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <div>
-                      <p className="text-sm text-gray-500">Work Start Date</p>
+                      <p className="text-sm text-gray-800">Work Start Date</p>
                       <p className="text-gray-900">{formatDate(member.workStartDate)}</p>
                     </div>
                   </div>
@@ -878,7 +996,7 @@ export default function TeamMemberDetail() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 Employment Details
@@ -886,12 +1004,10 @@ export default function TeamMemberDetail() {
               {editingSection !== 'employment' && (
                 <button
                   onClick={() => handleStartEdit('employment')}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-800 hover:text-gray-900 transition-colors"
                   title="Edit Employment Details"
                 >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
+                  <Pencil className="h-4 w-4" />
                 </button>
               )}
             </div>
@@ -899,13 +1015,13 @@ export default function TeamMemberDetail() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                   <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
-                    </svg>
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                  </svg>
                     <div className="flex-1">
-                      <label className="block text-sm text-gray-500 mb-1">Training Start Date</label>
+                      <label className="block text-sm text-gray-800 mb-1">Training Start Date</label>
                       <input
                         type="date"
                         value={editFormData.trainingStartDate || ''}
@@ -915,13 +1031,13 @@ export default function TeamMemberDetail() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
-                    </svg>
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                  </svg>
                     <div className="flex-1">
-                      <label className="block text-sm text-gray-500 mb-1">Training End Date</label>
+                      <label className="block text-sm text-gray-800 mb-1">Training End Date</label>
                       <input
                         type="date"
                         value={editFormData.trainingEndDate || ''}
@@ -931,11 +1047,11 @@ export default function TeamMemberDetail() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <div className="flex-1">
-                      <label className="block text-sm text-gray-500 mb-1">Joining Date</label>
+                      <label className="block text-sm text-gray-800 mb-1">Joining Date</label>
                       <input
                         type="date"
                         value={editFormData.workStartDate || ''}
@@ -965,37 +1081,37 @@ export default function TeamMemberDetail() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {member.trainingStartDate && (
                   <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
-                    </svg>
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                  </svg>
                     <div>
-                      <p className="text-sm text-gray-500">Training Start Date</p>
+                      <p className="text-sm text-gray-800">Training Start Date</p>
                       <p className="text-gray-900">{formatDate(member.trainingStartDate)}</p>
                     </div>
                   </div>
                 )}
                 {member.trainingEndDate && (
                   <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
-                    </svg>
+                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                  </svg>
                     <div>
-                      <p className="text-sm text-gray-500">Training End Date</p>
+                      <p className="text-sm text-gray-800">Training End Date</p>
                       <p className="text-gray-900">{formatDate(member.trainingEndDate)}</p>
                     </div>
                   </div>
                 )}
                 {member.workStartDate && (
                   <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <div>
-                      <p className="text-sm text-gray-500">Joining Date</p>
+                      <p className="text-sm text-gray-800">Joining Date</p>
                       <p className="text-gray-900">{formatDate(member.workStartDate)}</p>
                     </div>
                   </div>
@@ -1007,39 +1123,40 @@ export default function TeamMemberDetail() {
 
         {/* Tabs Section */}
         <div className="mt-8">
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('metrics')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'metrics'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Metrics
-              </button>
-              <button
-                onClick={() => setActiveTab('notes')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'notes'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Notes
-              </button>
-              <button
-                onClick={() => setActiveTab('inventory')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'inventory'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Inventory
-              </button>
-            </nav>
+          <div className="flex flex-wrap gap-3 mb-6">
+            <button
+              onClick={() => setActiveTab('metrics')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shadow-sm ${
+                activeTab === 'metrics'
+                  ? 'bg-[#E91E63] text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <TrendingUp className={`h-4 w-4 ${activeTab === 'metrics' ? 'text-white' : 'text-gray-800'}`} />
+              Metrics
+            </button>
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shadow-sm ${
+                activeTab === 'notes'
+                  ? 'bg-[#E91E63] text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <StickyNote className={`h-4 w-4 ${activeTab === 'notes' ? 'text-white' : 'text-gray-800'}`} />
+              Notes ({notes.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shadow-sm ${
+                activeTab === 'inventory'
+                  ? 'bg-[#E91E63] text-white'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <Package className={`h-4 w-4 ${activeTab === 'inventory' ? 'text-white' : 'text-gray-800'}`} />
+              Inventory ({inventoryPurchases.length})
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -1102,16 +1219,14 @@ export default function TeamMemberDetail() {
                         return (
                           <div
                             key={note.id}
-                            className={`p-3 rounded-lg transition-all border ${
+                            onClick={() => setSelectedNote(note)}
+                            className={`p-3 rounded-lg transition-all border cursor-pointer ${
                               isSelected
                                 ? 'bg-blue-50 border-blue-500'
                                 : 'bg-white hover:bg-gray-50 border-gray-200'
                             }`}
                           >
-                            <div
-                              onClick={() => setSelectedNote(note)}
-                              className="cursor-pointer"
-                            >
+                            <div>
                               <p className="text-xs text-gray-500 mb-1">{note.nyTimestamp}</p>
                               <p className="text-sm line-clamp-2">{note.noteText}</p>
                             </div>
@@ -1121,20 +1236,22 @@ export default function TeamMemberDetail() {
                                   e.stopPropagation()
                                   handleEditNote(note)
                                 }}
-                                className="p-1 text-gray-500 hover:text-blue-600"
+                                className="p-1 text-gray-800 hover:text-blue-600 transition-colors"
                                 disabled={deleteNoteMutation.isPending}
+                                title="Edit note"
                               >
-                                ✏️
+                                <Pencil className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleDeleteNote(note.id)
                                 }}
-                                className="p-1 text-gray-500 hover:text-red-600"
+                                className="p-1 text-gray-800 hover:text-red-600 transition-colors"
                                 disabled={deleteNoteMutation.isPending}
+                                title="Delete note"
                               >
-                                🗑️
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </div>
@@ -1183,20 +1300,22 @@ export default function TeamMemberDetail() {
                                   e.stopPropagation()
                                   handleEditPurchase(purchase)
                                 }}
-                                className="p-1 text-gray-500 hover:text-blue-600"
+                                className="p-1 text-gray-800 hover:text-blue-600 transition-colors"
                                 disabled={updatePurchaseMutation.isPending || deletePurchaseMutation.isPending}
+                                title="Edit purchase"
                               >
-                                ✏️
+                                <Pencil className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleDeletePurchase(purchase.id)
                                 }}
-                                className="p-1 text-gray-500 hover:text-red-600"
+                                className="p-1 text-gray-800 hover:text-red-600 transition-colors"
                                 disabled={updatePurchaseMutation.isPending || deletePurchaseMutation.isPending}
+                                title="Delete purchase"
                               >
-                                🗑️
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </div>
@@ -1259,24 +1378,85 @@ export default function TeamMemberDetail() {
                       <p className="text-gray-500">Select an item from the list to view its entries</p>
                     </div>
                   ) : (
-                    <div className="h-full overflow-y-auto">
-                      {getFilteredKpiEntriesByType(selectedKpi.type).length === 0 ? (
-                        <div className="text-center py-8">
-                          <p className="text-gray-500 italic">No entries for {selectedKpi.name} in {filterYear}</p>
-                          <button
-                            onClick={() => {
-                              if (selectedKpi.customMetric) {
-                                setSelectedCustomMetric(selectedKpi.customMetric)
-                                setCustomMetricDialogOpen(true)
-                              }
-                            }}
-                            className="mt-4 px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                          >
-                            Add Entry
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
+                    <div className="h-full flex flex-col">
+                      {/* Chart Section */}
+                      <div className="h-[250px] mb-4 flex-shrink-0">
+                        {(() => {
+                          const chartData = getChartDataForKpi(selectedKpi.type)
+                          const hasData = chartData.some(d => d.value > 0)
+                          const metricColor = getMetricColor(selectedKpi.customMetric)
+                          const hasDollarValueField = selectedKpi.customMetric?.fields.some(f => f.type === 'dollarValue')
+                          
+                          if (!hasData) {
+                            return (
+                              <div className="flex items-center justify-center h-full bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                                <p className="text-gray-500 text-sm">No data to display</p>
+                              </div>
+                            )
+                          }
+                          
+                          return (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <XAxis 
+                                  dataKey="month" 
+                                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                                  axisLine={{ stroke: '#e5e7eb' }}
+                                  tickLine={{ stroke: '#e5e7eb' }}
+                                />
+                                <YAxis 
+                                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                                  axisLine={{ stroke: '#e5e7eb' }}
+                                  tickLine={{ stroke: '#e5e7eb' }}
+                                  allowDecimals={hasDollarValueField}
+                                  tickFormatter={hasDollarValueField ? (value) => `$${value}` : undefined}
+                                />
+                                <Tooltip
+                                  formatter={(value: any) => [
+                                    hasDollarValueField ? `$${Number(value).toFixed(2)}` : value, 
+                                    hasDollarValueField ? 'Total' : 'Count'
+                                  ]}
+                                  contentStyle={{ 
+                                    backgroundColor: '#ffffff', 
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '6px',
+                                    padding: '8px'
+                                  }}
+                                />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="value" 
+                                  stroke={metricColor}
+                                  strokeWidth={2}
+                                  dot={{ r: 5, fill: metricColor, strokeWidth: 2 }}
+                                  activeDot={{ r: 7 }}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          )
+                        })()}
+                      </div>
+                      
+                      {/* Entries List Section */}
+                      <div className="flex-1 overflow-y-auto">
+                        {getFilteredKpiEntriesByType(selectedKpi.type).length === 0 ? (
+                          <div className="text-center py-8">
+                            <p className="text-gray-500 italic">No entries for {selectedKpi.name} in {filterYear}</p>
+                            <button
+                              onClick={() => {
+                                if (selectedKpi.customMetric) {
+                                  setSelectedCustomMetric(selectedKpi.customMetric)
+                                  setCustomMetricDialogOpen(true)
+                                }
+                              }}
+                              className="mt-4 px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                            >
+                              Add Entry
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
                           {getFilteredKpiEntriesByType(selectedKpi.type).map((entry) => {
                             let fieldValues: Record<string, any> = {}
                             try {
@@ -1296,17 +1476,19 @@ export default function TeamMemberDetail() {
                                     )}
                                     <button
                                       onClick={() => handleEditKpiEntry(entry)}
-                                      className="p-1 text-gray-500 hover:text-blue-600"
+                                      className="p-1 text-gray-800 hover:text-blue-600 transition-colors"
                                       disabled={updateKpiEntryMutation.isPending}
+                                      title="Edit entry"
                                     >
-                                      ✏️
+                                      <Pencil className="h-4 w-4" />
                                     </button>
                                     <button
                                       onClick={() => handleDeleteKpiEntry(entry.id)}
-                                      className="p-1 text-gray-500 hover:text-red-600"
+                                      className="p-1 text-gray-800 hover:text-red-600 transition-colors"
                                       disabled={deleteKpiEntryMutation.isPending}
+                                      title="Delete entry"
                                     >
-                                      🗑️
+                                      <Trash2 className="h-4 w-4" />
                                     </button>
                                   </div>
                                 </div>
@@ -1315,64 +1497,25 @@ export default function TeamMemberDetail() {
                                     // Try multiple ways to extract the value
                                     const value = fieldValues[field.id] || fieldValues[field.name] || ''
                                     
-                                    // Check if this is an image field
-                                    const isImageField = field.type === 'image'
-                                    
-                                    // For image fields, check for image URL first (priority)
-                                    let imageUrl = ''
-                                    if (isImageField) {
-                                      imageUrl = fieldValues[`${field.id}_url`] || ''
-                                    }
-                                    
-                                    // Validate value exists and is a string (or imageUrl exists for image fields)
+                                    // Validate value exists and is a string
                                     if (!value || typeof value !== 'string' || value.trim() === '') {
-                                      // For image fields, if we have an imageUrl, still show it
-                                      if (isImageField && imageUrl && imageUrl.trim() !== '') {
-                                        // Continue with imageUrl
-                                      } else {
-                                        return null
-                                      }
+                                      return null
                                     }
                                     
                                     const stringValue = String(value).trim()
+                                    
+                                    // Check if this is an image field
+                                    const isImageField = field.type === 'image'
                                     
                                     // Check for different image formats
                                     const isUrl = stringValue.startsWith('http://') || stringValue.startsWith('https://')
                                     const isBase64 = stringValue.startsWith('data:image/')
                                     
-                                    // Check if value looks like an image filename (has image extension)
-                                    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico']
-                                    const isFilename = isImageField && imageExtensions.some(ext => 
-                                      stringValue.toLowerCase().endsWith(ext)
-                                    )
-                                    
                                     // Determine if we should display as image
-                                    const isImageValue = isImageField && (imageUrl || isUrl || isBase64 || isFilename)
+                                    const isImageValue = isImageField && (isUrl || isBase64)
                                     
-                                    // Construct image URL - prioritize explicit imageUrl, then check value format
-                                    let imageSrc = imageUrl || stringValue
-                                    if (isImageField && !imageUrl) {
-                                      if (isUrl || isBase64) {
-                                        // Already a URL or base64, use as-is
-                                        imageSrc = stringValue
-                                      } else if (isFilename) {
-                                        // Try to construct URL from filename
-                                        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
-                                        const baseUrlWithoutApi = apiBaseUrl.replace('/api', '').replace('/api/', '')
-                                        
-                                        // Try different possible paths for uploaded images
-                                        const possiblePaths = [
-                                          `/uploads/${stringValue}`, // Relative path
-                                          `${baseUrlWithoutApi}/uploads/${stringValue}`, // Absolute path from API base
-                                          `${baseUrlWithoutApi}/images/${stringValue}`, // Alternative images directory
-                                          `${baseUrlWithoutApi}/public/${stringValue}`, // Public directory
-                                          `/images/${stringValue}`, // Alternative relative path
-                                        ]
-                                        
-                                        // Use the first path (can be enhanced to test which one works)
-                                        imageSrc = possiblePaths[0]
-                                      }
-                                    }
+                                    // Use the value directly as image source (base64 or URL)
+                                    const imageSrc = stringValue
                                     
                                     return (
                                       <div key={field.id} className="text-sm">
@@ -1391,19 +1534,8 @@ export default function TeamMemberDetail() {
                                                   target.style.display = 'none'
                                                   const fallback = document.createElement('span')
                                                   fallback.className = 'image-fallback text-gray-600 text-xs italic'
-                                                  // Show original filename if URL construction failed
-                                                  const displayValue = isFilename && imageSrc !== stringValue 
-                                                    ? `${stringValue} (URL: ${imageSrc})` 
-                                                    : stringValue
-                                                  fallback.textContent = `(Image failed to load: ${displayValue.substring(0, 50)}...)`
+                                                  fallback.textContent = `(Image failed to load)`
                                                   parent.appendChild(fallback)
-                                                }
-                                              }}
-                                              onLoad={(e) => {
-                                                // Image loaded successfully
-                                                const target = e.target as HTMLImageElement
-                                                if (target) {
-                                                  target.style.display = 'block'
                                                 }
                                               }}
                                             />
@@ -1420,6 +1552,7 @@ export default function TeamMemberDetail() {
                           })}
                         </div>
                       )}
+                      </div>
                     </div>
                   )
                 ) : activeTab === 'notes' ? (
@@ -1637,7 +1770,7 @@ export default function TeamMemberDetail() {
                     setEditFieldValues({})
                     setEditEntryDate('')
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-800 hover:text-gray-900"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1712,41 +1845,68 @@ export default function TeamMemberDetail() {
 
                         {(field.type === 'upload' || field.type === 'image') && (
                           <div className="space-y-2">
+                            {field.type === 'image' && value && (value.startsWith('data:image/') || value.startsWith('http://') || value.startsWith('https://')) && (
+                              <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <p className="text-sm font-medium text-gray-700 mb-2">Current Image</p>
+                                <img 
+                                  src={value} 
+                                  alt="Current" 
+                                  className="max-w-full h-auto rounded-lg border border-gray-200 max-h-32 object-contain"
+                                />
+                              </div>
+                            )}
                             <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                {field.type === 'image' && value && (value.startsWith('data:image/') || value.startsWith('http://') || value.startsWith('https://'))
+                                  ? 'Replace Image'
+                                  : field.type === 'image'
+                                  ? 'Select Image'
+                                  : 'Select File'}
+                              </label>
                               <input
                                 id={`edit-${field.id}`}
                                 type="file"
                                 accept={field.type === 'image' ? 'image/*' : '*'}
-                                onChange={(e) => {
+                                onChange={async (e) => {
                                   const file = e.target.files?.[0]
                                   if (file) {
-                                    handleEditFieldChange(field.id, file.name)
+                                    if (field.type === 'image') {
+                                      // Compress and convert image to base64
+                                      try {
+                                        const compressedBase64 = await compressImage(file)
+                                        handleEditFieldChange(field.id, compressedBase64)
+                                      } catch (error) {
+                                        console.error('Error compressing image:', error)
+                                        // Fallback to regular base64 if compression fails
+                                        const reader = new FileReader()
+                                        reader.onloadend = () => {
+                                          const result = reader.result as string
+                                          handleEditFieldChange(field.id, result)
+                                        }
+                                        reader.readAsDataURL(file)
+                                      }
+                                    } else {
+                                      // For non-image uploads, store file name
+                                      handleEditFieldChange(field.id, file.name)
+                                    }
                                   }
+                                  // Reset the input so the same file can be selected again
+                                  e.target.value = ''
                                 }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
-                              {value && (
+                              {field.type === 'image' && value && (value.startsWith('data:image/') || value.startsWith('http://') || value.startsWith('https://')) && (
+                                <p className="mt-1 text-xs text-gray-500">
+                                  Select a new image file to replace the current one
+                                </p>
+                              )}
+                              {value && field.type === 'image' && !value.startsWith('data:image/') && !value.startsWith('http://') && !value.startsWith('https://') && (
+                                <p className="mt-1 text-sm text-gray-500">Selected: {value}</p>
+                              )}
+                              {value && field.type !== 'image' && (
                                 <p className="mt-1 text-sm text-gray-500">Selected: {value}</p>
                               )}
                             </div>
-                            {field.type === 'image' && (
-                              <div>
-                                <label htmlFor={`edit-${field.id}_url`} className="block text-sm font-medium text-gray-700 mb-1">
-                                  Image URL (Optional)
-                                </label>
-                                <input
-                                  id={`edit-${field.id}_url`}
-                                  type="url"
-                                  value={editFieldValues[`${field.id}_url`] || ''}
-                                  onChange={(e) => handleEditFieldChange(`${field.id}_url`, e.target.value)}
-                                  placeholder="https://example.com/image.jpg"
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <p className="mt-1 text-xs text-gray-500">
-                                  Enter a direct URL to the image. This will be used for display if provided.
-                                </p>
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>

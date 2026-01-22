@@ -4,7 +4,7 @@ import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
 import TeamMetricsSummary from '../components/TeamMetricsSummary'
 import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
-import { Plus, BarChart3, Home } from 'lucide-react'
+import { Plus, BarChart3, ArrowLeft, Settings } from 'lucide-react'
 
 export default function Metrics() {
   const dispatch = useAppDispatch()
@@ -44,7 +44,7 @@ export default function Metrics() {
             </div>
             <div className="flex items-center gap-3">
               <Link
-                to="/settings"
+                to="/settings?section=metrics"
                 className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
                 title="Settings"
               >
@@ -83,13 +83,22 @@ export default function Metrics() {
                 Manage and view team performance metrics
               </p>
             </div>
-            <Link
-              to="/services"
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors flex items-center gap-2"
-            >
-              <Home className="h-4 w-4" />
-              Back to Services
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/settings?section=metrics"
+                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                title="Settings"
+              >
+                <Settings className="w-5 h-5" />
+              </Link>
+              <Link
+                to="/services"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Services
+              </Link>
+            </div>
           </div>
         </div>
 
