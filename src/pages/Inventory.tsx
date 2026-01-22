@@ -337,9 +337,9 @@ export default function Inventory() {
   // Early return for loading state
   if (isLoadingInventory || isLoadingCategories) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         {/* Header Navigation */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
+        <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-8">
@@ -387,9 +387,9 @@ export default function Inventory() {
   // Early return for error state
   if (hasCriticalError) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         {/* Header Navigation */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
+        <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-8">
