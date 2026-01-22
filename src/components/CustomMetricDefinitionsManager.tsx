@@ -187,9 +187,9 @@ export default function CustomMetricDefinitionsManager() {
             </div>
             <button
               onClick={openCreateForm}
-              className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] transition-colors flex items-center gap-2"
+              className="px-3 py-1.5 text-sm font-medium bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] transition-colors flex items-center gap-1.5"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-4.5" />
               Add Metric
             </button>
           </div>
@@ -200,59 +200,67 @@ export default function CustomMetricDefinitionsManager() {
               {metrics.map((metric) => (
                 <div
                   key={metric.id}
-                  className="bg-white border border-gray-200 rounded-lg p-4 relative hover:shadow-md transition-shadow"
+                  className="bg-white border border-gray-200 rounded-lg p-4 relative hover:shadow-md transition-all hover:border-gray-300"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
                         <div
-                          className={`w-3 h-3 rounded-full ${
+                          className={`w-3 h-3 rounded-full flex-shrink-0 ${
                             COLOR_OPTIONS.find((c) => c.value === metric.color)?.class || 'bg-blue-500'
                           }`}
                         />
-                        <h3 className="text-lg font-semibold text-gray-900">{metric.name}</h3>
+                        <h3 className="text-base font-semibold text-gray-900 truncate">{metric.name}</h3>
                       </div>
                       {metric.description && (
-                        <p className="text-sm text-gray-500 mt-1 ml-5">{metric.description}</p>
+                        <p className="text-sm text-gray-500 mt-0.5 ml-5 line-clamp-2">{metric.description}</p>
                       )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 ml-2 flex-shrink-0">
                       <button
                         onClick={() => openEditForm(metric)}
-                        className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                        className="p-1 text-gray-500 hover:text-[#E91E63] transition-colors"
+                        title="Edit metric"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(metric.id)}
                         className="p-1 text-gray-500 hover:text-red-600 transition-colors"
+                        title="Delete metric"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
              
-                  <div className="space-y-2">
-                    <p className="text-xs text-gray-500 font-medium">Fields:</p>
+                  <div className="space-y-2 mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">FIELDS:</p>
                     <div className="flex flex-wrap gap-2">
-                      {metric.fields.map((field) => {
-                        const Icon = getFieldTypeIcon(field.type)
-                        return (
-                          <div
-                            key={field.id}
-                            className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-xs"
-                          >
-                            <Icon className="h-3 w-3" />
-                            <span>{field.name}</span>
-                            {field.required && <span className="text-red-500">*</span>}
-                          </div>
-                        )
-                      })}
+                      {metric.fields.length > 0 ? (
+                        metric.fields.map((field) => {
+                          const Icon = getFieldTypeIcon(field.type)
+                          return (
+                            <div
+                              key={field.id}
+                              className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-md text-xs text-gray-700"
+                            >
+                              <Icon className="h-3 w-3 text-gray-600" />
+                              <span>{field.name}</span>
+                              {field.required && <span className="text-red-500 font-semibold">*</span>}
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">No fields defined</span>
+                      )}
                     </div>
                   </div>
                   {!metric.isActive && (
-                    <div className="mt-3 text-xs text-gray-500">
-                      <span className="px-2 py-1 bg-gray-100 rounded">Inactive</span>
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        Inactive
+                      </span>
                     </div>
                   )}
                 </div>
