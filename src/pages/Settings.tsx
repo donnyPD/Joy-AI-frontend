@@ -428,7 +428,7 @@ export default function Settings() {
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeMainSection === 'automations'
-                        ? 'text-gray-900 bg-blue-50 hover:bg-blue-100'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
@@ -452,7 +452,7 @@ export default function Settings() {
                         }}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                           activeMainSection === 'automations' && activeAutomationSubsection === 'google'
-                            ? 'bg-blue-100 text-blue-600'
+                            ? 'bg-pink-100 text-[#E91E63]'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }`}
                       >
@@ -466,7 +466,7 @@ export default function Settings() {
                         }}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                           activeMainSection === 'automations' && activeAutomationSubsection === 'slack'
-                            ? 'bg-blue-100 text-blue-600'
+                            ? 'bg-pink-100 text-[#E91E63]'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }`}
                       >
@@ -480,7 +480,7 @@ export default function Settings() {
                         }}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                           activeMainSection === 'automations' && activeAutomationSubsection === 'jobber'
-                            ? 'bg-blue-100 text-blue-600'
+                            ? 'bg-pink-100 text-[#E91E63]'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }`}
                       >
@@ -903,7 +903,7 @@ export default function Settings() {
                           }}
                           className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                             activeOptionSubsection === 'types'
-                              ? 'border-blue-500 text-blue-600'
+                              ? 'border-[#E91E63] text-[#E91E63]'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                         >
@@ -916,7 +916,7 @@ export default function Settings() {
                           }}
                           className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                             activeOptionSubsection === 'statuses'
-                              ? 'border-blue-500 text-blue-600'
+                              ? 'border-[#E91E63] text-[#E91E63]'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                         >
@@ -944,7 +944,7 @@ export default function Settings() {
                             }}
                             className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                               activeMetricsTab === 'add-metrics'
-                                ? 'border-blue-500 text-blue-600'
+                                ? 'border-[#E91E63] text-[#E91E63]'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                           >
@@ -957,7 +957,7 @@ export default function Settings() {
                             }}
                             className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                               activeMetricsTab === 'delivery-channel'
-                                ? 'border-blue-500 text-blue-600'
+                                ? 'border-[#E91E63] text-[#E91E63]'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                           >
@@ -970,7 +970,7 @@ export default function Settings() {
                             }}
                             className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                               activeMetricsTab === 'message-template'
-                                ? 'border-blue-500 text-blue-600'
+                                ? 'border-[#E91E63] text-[#E91E63]'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                           >
