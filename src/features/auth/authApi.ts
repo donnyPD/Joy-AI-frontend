@@ -18,6 +18,11 @@ interface AuthResponse {
     id: string
     email: string
     name: string
+    isSubscribed?: boolean
+    subscription?: {
+      planKey: string
+      status: string
+    } | null
   }
 }
 
