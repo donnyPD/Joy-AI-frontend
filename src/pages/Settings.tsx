@@ -1,18 +1,35 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
-import { Settings as SettingsIcon, ChevronRight, ChevronDown } from 'lucide-react'
+import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3 } from 'lucide-react'
 import TeamMemberTypesManager from '../components/TeamMemberTypesManager'
 import TeamMemberStatusesManager from '../components/TeamMemberStatusesManager'
+import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
 
 type OptionSubsection = 'types' | 'statuses'
+type TeamSection = 'option-management' | 'metrics'
 
 export default function Settings() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
+  const [searchParams] = useSearchParams()
   const [activeSubsection, setActiveSubsection] = useState<OptionSubsection>('types')
+  const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('option-management')
+  const [isTeamExpanded, setIsTeamExpanded] = useState(true)
   const [isOptionManagementExpanded, setIsOptionManagementExpanded] = useState(true)
+  const [isMetricsExpanded, setIsMetricsExpanded] = useState(false)
+
+  // Handle URL query parameter to auto-select Metrics section
+  useEffect(() => {
+    const section = searchParams.get('section')
+    if (section === 'metrics') {
+      setActiveTeamSection('metrics')
+      setIsMetricsExpanded(true)
+      setIsOptionManagementExpanded(false)
+      setIsTeamExpanded(true)
+    }
+  }, [searchParams])
 
   const handleSignOut = () => {
     dispatch(logout())
@@ -76,41 +93,78 @@ export default function Settings() {
               </div>
 
               <nav className="space-y-1">
-                {/* Option Management Section */}
+                {/* Team Section */}
                 <div>
                   <button
-                    onClick={() => setIsOptionManagementExpanded(!isOptionManagementExpanded)}
+                    onClick={() => setIsTeamExpanded(!isTeamExpanded)}
                     className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-900 bg-blue-50 hover:bg-blue-100 transition-colors"
                   >
-                    <span>Option Management</span>
-                    {isOptionManagementExpanded ? (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      <span>Team</span>
+                    </div>
+                    {isTeamExpanded ? (
                       <ChevronDown className="h-4 w-4" />
                     ) : (
                       <ChevronRight className="h-4 w-4" />
                     )}
                   </button>
-                  {isOptionManagementExpanded && (
+                  {isTeamExpanded && (
                     <div className="pl-4 mt-1 space-y-1">
-                      <button
-                        onClick={() => setActiveSubsection('types')}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          activeSubsection === 'types'
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                        }`}
-                      >
-                        Team Member Types
-                      </button>
-                      <button
-                        onClick={() => setActiveSubsection('statuses')}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          activeSubsection === 'statuses'
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                        }`}
-                      >
-                        Status Types
-                      </button>
+                      {/* Option Management Section */}
+                      <div>
+                        <button
+                          onClick={() => {
+                            setIsOptionManagementExpanded(!isOptionManagementExpanded)
+                            if (!isOptionManagementExpanded) {
+                              setActiveTeamSection('option-management')
+                              setIsMetricsExpanded(false)
+                            }
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeTeamSection === 'option-management'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Sliders className="h-4 w-4" />
+                            <span>Option Management</span>
+                          </div>
+                          {isOptionManagementExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {/* Metrics Section */}
+                      <div>
+                        <button
+                          onClick={() => {
+                            setIsMetricsExpanded(!isMetricsExpanded)
+                            if (!isMetricsExpanded) {
+                              setActiveTeamSection('metrics')
+                              setIsOptionManagementExpanded(false)
+                            }
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeTeamSection === 'metrics'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" />
+                            <span>Metrics</span>
+                          </div>
+                          {isMetricsExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -120,8 +174,43 @@ export default function Settings() {
 
           {/* Main Content Area */}
           <main className="flex-1 min-w-0">
-            {activeSubsection === 'types' && <TeamMemberTypesManager />}
-            {activeSubsection === 'statuses' && <TeamMemberStatusesManager />}
+            {/* Horizontal Navbar for Option Management Subsections */}
+            {activeTeamSection === 'option-management' && isOptionManagementExpanded && (
+              <div className="mb-6 border-b border-gray-200">
+                <nav className="flex space-x-8" aria-label="Option Management Tabs">
+                  <button
+                    onClick={() => setActiveSubsection('types')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeSubsection === 'types'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Team Member Types
+                  </button>
+                  <button
+                    onClick={() => setActiveSubsection('statuses')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeSubsection === 'statuses'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Status Types
+                  </button>
+                </nav>
+              </div>
+            )}
+            {/* Render content based on active section */}
+            {activeTeamSection === 'option-management' && (
+              <>
+                {activeSubsection === 'types' && <TeamMemberTypesManager />}
+                {activeSubsection === 'statuses' && <TeamMemberStatusesManager />}
+              </>
+            )}
+            {activeTeamSection === 'metrics' && isMetricsExpanded && (
+              <CustomMetricDefinitionsManager />
+            )}
           </main>
         </div>
       </div>
