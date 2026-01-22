@@ -8,6 +8,11 @@ interface User {
   name: string
   jobberAccessToken?: string
   jobberAccountId?: string
+  isSubscribed?: boolean
+  subscription?: {
+    planKey: string
+    status: string
+  } | null
 }
 
 interface AuthState {
