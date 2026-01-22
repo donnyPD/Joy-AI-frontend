@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
-import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3, Zap, Briefcase, BookOpen, Calendar, Bell, Info, FileText } from 'lucide-react'
+import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3, Zap, Briefcase, BookOpen, Calendar, Bell, Info, FileText, Globe } from 'lucide-react'
 import TeamMemberTypesManager from '../components/TeamMemberTypesManager'
 import TeamMemberStatusesManager from '../components/TeamMemberStatusesManager'
 import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
@@ -11,14 +11,15 @@ type OptionSubsection = 'types' | 'statuses'
 type TeamSection = 'metrics' | 'automations' | 'team-members'
 type ServiceSection = 'scheduling' | 'notifications'
 type KnowledgeBaseSection = 'fallback-response' | 'response-format'
-type MainSection = 'team' | 'service' | 'knowledge-base'
+type MainSection = 'global-settings' | 'team' | 'service' | 'knowledge-base'
+type MetricsTab = 'add-metrics' | 'delivery-channel' | 'message-template'
 
 export default function Settings() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const [searchParams] = useSearchParams()
   const [activeSubsection, setActiveSubsection] = useState<OptionSubsection>('types')
-  const [activeMainSection, setActiveMainSection] = useState<MainSection>('team')
+  const [activeMainSection, setActiveMainSection] = useState<MainSection>('global-settings')
   const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('team-members')
   const [activeServiceSection, setActiveServiceSection] = useState<ServiceSection>('scheduling')
   const [activeKnowledgeBaseSection, setActiveKnowledgeBaseSection] = useState<KnowledgeBaseSection>('fallback-response')
@@ -30,17 +31,121 @@ export default function Settings() {
   const [isTeamMembersExpanded, setIsTeamMembersExpanded] = useState(true)
   const [isMetricsExpanded, setIsMetricsExpanded] = useState(false)
   const [isAutomationsExpanded, setIsAutomationsExpanded] = useState(false)
+  const [activeMetricsTab, setActiveMetricsTab] = useState<MetricsTab>('add-metrics')
 
-  // Handle URL query parameter to auto-select Metrics section
+  // Helper function to parse hash and update state
+  const parseHashAndUpdateState = (hash: string) => {
+    // Remove the # symbol
+    const hashValue = hash.replace('#', '')
+    if (!hashValue) {
+      // Default to global-settings if no hash
+      setActiveMainSection('global-settings')
+      return
+    }
+
+    const parts = hashValue.split('-')
+    
+    // Handle global-settings
+    if (hashValue === 'global-settings') {
+      setActiveMainSection('global-settings')
+      return
+    }
+
+    // Handle team sections
+    if (parts[0] === 'team') {
+      setActiveMainSection('team')
+      setIsTeamExpanded(true)
+      
+      if (parts[1] === 'metrics') {
+        setActiveTeamSection('metrics')
+        setIsMetricsExpanded(true)
+        setIsTeamMembersExpanded(false)
+        setIsAutomationsExpanded(false)
+        
+        // Handle metrics tabs
+        if (parts[2] === 'add' && parts[3] === 'metrics') {
+          setActiveMetricsTab('add-metrics')
+        } else if (parts[2] === 'delivery' && parts[3] === 'channel') {
+          setActiveMetricsTab('delivery-channel')
+        } else if (parts[2] === 'message' && parts[3] === 'template') {
+          setActiveMetricsTab('message-template')
+        }
+      } else if (parts[1] === 'automations') {
+        setActiveTeamSection('automations')
+        setIsAutomationsExpanded(true)
+        setIsTeamMembersExpanded(false)
+        setIsMetricsExpanded(false)
+      } else if (parts[1] === 'team' && parts[2] === 'members') {
+        setActiveTeamSection('team-members')
+        setIsTeamMembersExpanded(true)
+        setIsMetricsExpanded(false)
+        setIsAutomationsExpanded(false)
+        
+        // Handle team members subsections
+        if (parts[3] === 'types') {
+          setActiveSubsection('types')
+        } else if (parts[3] === 'statuses') {
+          setActiveSubsection('statuses')
+        }
+      }
+      return
+    }
+
+    // Handle service sections
+    if (parts[0] === 'service') {
+      setActiveMainSection('service')
+      setIsServiceExpanded(true)
+      
+      if (parts[1] === 'scheduling') {
+        setActiveServiceSection('scheduling')
+      } else if (parts[1] === 'notifications') {
+        setActiveServiceSection('notifications')
+      }
+      return
+    }
+
+    // Handle knowledge-base sections
+    if (parts[0] === 'knowledge' && parts[1] === 'base') {
+      setActiveMainSection('knowledge-base')
+      setIsKnowledgeBaseExpanded(true)
+      
+      if (parts[2] === 'fallback' && parts[3] === 'response') {
+        setActiveKnowledgeBaseSection('fallback-response')
+      } else if (parts[2] === 'response' && parts[3] === 'format') {
+        setActiveKnowledgeBaseSection('response-format')
+      }
+      return
+    }
+  }
+
+  // Handle URL hash parameter for navigation
+  useEffect(() => {
+    // Check for hash on mount
+    const hash = window.location.hash
+    if (hash) {
+      parseHashAndUpdateState(hash)
+    } else {
+      // Default to global-settings if no hash
+      setActiveMainSection('global-settings')
+    }
+
+    // Listen for hash changes
+    const handleHashChange = () => {
+      const newHash = window.location.hash
+      if (newHash) {
+        parseHashAndUpdateState(newHash)
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  // Handle URL query parameter to auto-select Metrics section (backward compatibility)
   useEffect(() => {
     const section = searchParams.get('section')
     if (section === 'metrics') {
-      setActiveMainSection('team')
-      setActiveTeamSection('metrics')
-      setIsMetricsExpanded(true)
-      setIsTeamMembersExpanded(false)
-      setIsAutomationsExpanded(false)
-      setIsTeamExpanded(true)
+      window.location.hash = 'team-metrics'
     }
   }, [searchParams])
 
@@ -106,6 +211,26 @@ export default function Settings() {
               </div>
 
               <nav className="space-y-1">
+                {/* Global Settings Section */}
+                <div>
+                  <button
+                    onClick={() => {
+                      setActiveMainSection('global-settings')
+                      window.location.hash = 'global-settings'
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeMainSection === 'global-settings'
+                        ? 'text-gray-900 bg-blue-50 hover:bg-blue-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      <span>Global Settings</span>
+                    </div>
+                  </button>
+                </div>
+
                 {/* Team Section */}
                 <div>
                   <button
@@ -113,6 +238,7 @@ export default function Settings() {
                       setIsTeamExpanded(!isTeamExpanded)
                       if (!isTeamExpanded) {
                         setActiveMainSection('team')
+                        window.location.hash = 'team-team-members'
                       }
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -146,6 +272,7 @@ export default function Settings() {
                             setActiveTeamSection('metrics')
                             setIsTeamMembersExpanded(false)
                             setIsAutomationsExpanded(false)
+                            window.location.hash = 'team-metrics-add-metrics'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeMainSection === 'team' && activeTeamSection === 'metrics'
@@ -177,6 +304,7 @@ export default function Settings() {
                             setActiveTeamSection('automations')
                             setIsTeamMembersExpanded(false)
                             setIsMetricsExpanded(false)
+                            window.location.hash = 'team-automations'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeMainSection === 'team' && activeTeamSection === 'automations'
@@ -208,6 +336,7 @@ export default function Settings() {
                             setActiveTeamSection('team-members')
                             setIsMetricsExpanded(false)
                             setIsAutomationsExpanded(false)
+                            window.location.hash = 'team-team-members-types'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeMainSection === 'team' && activeTeamSection === 'team-members'
@@ -237,6 +366,7 @@ export default function Settings() {
                       setIsServiceExpanded(!isServiceExpanded)
                       if (!isServiceExpanded) {
                         setActiveMainSection('service')
+                        window.location.hash = 'service-scheduling'
                       }
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -263,6 +393,7 @@ export default function Settings() {
                           onClick={() => {
                             setActiveMainSection('service')
                             setActiveServiceSection('scheduling')
+                            window.location.hash = 'service-scheduling'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeMainSection === 'service' && activeServiceSection === 'scheduling'
@@ -282,6 +413,7 @@ export default function Settings() {
                           onClick={() => {
                             setActiveMainSection('service')
                             setActiveServiceSection('notifications')
+                            window.location.hash = 'service-notifications'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeMainSection === 'service' && activeServiceSection === 'notifications'
@@ -306,6 +438,7 @@ export default function Settings() {
                       setIsKnowledgeBaseExpanded(!isKnowledgeBaseExpanded)
                       if (!isKnowledgeBaseExpanded) {
                         setActiveMainSection('knowledge-base')
+                        window.location.hash = 'knowledge-base-fallback-response'
                       }
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -332,6 +465,7 @@ export default function Settings() {
                           onClick={() => {
                             setActiveMainSection('knowledge-base')
                             setActiveKnowledgeBaseSection('fallback-response')
+                            window.location.hash = 'knowledge-base-fallback-response'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeMainSection === 'knowledge-base' && activeKnowledgeBaseSection === 'fallback-response'
@@ -351,6 +485,7 @@ export default function Settings() {
                           onClick={() => {
                             setActiveMainSection('knowledge-base')
                             setActiveKnowledgeBaseSection('response-format')
+                            window.location.hash = 'knowledge-base-response-format'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeMainSection === 'knowledge-base' && activeKnowledgeBaseSection === 'response-format'
@@ -373,6 +508,14 @@ export default function Settings() {
 
           {/* Main Content Area */}
           <main className="flex-1 min-w-0">
+            {/* Global Settings Section Content */}
+            {activeMainSection === 'global-settings' && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Global Settings</h2>
+                <p className="text-gray-600">Global settings will be available here.</p>
+              </div>
+            )}
+
             {/* Team Section Content */}
             {activeMainSection === 'team' && (
               <>
@@ -381,7 +524,10 @@ export default function Settings() {
                   <div className="mb-6 border-b border-gray-200">
                     <nav className="flex space-x-8" aria-label="Team Members Tabs">
                       <button
-                        onClick={() => setActiveSubsection('types')}
+                        onClick={() => {
+                          setActiveSubsection('types')
+                          window.location.hash = 'team-team-members-types'
+                        }}
                         className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                           activeSubsection === 'types'
                             ? 'border-blue-500 text-blue-600'
@@ -391,7 +537,10 @@ export default function Settings() {
                         Team Member Types
                       </button>
                       <button
-                        onClick={() => setActiveSubsection('statuses')}
+                        onClick={() => {
+                          setActiveSubsection('statuses')
+                          window.location.hash = 'team-team-members-statuses'
+                        }}
                         className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                           activeSubsection === 'statuses'
                             ? 'border-blue-500 text-blue-600'
@@ -411,7 +560,68 @@ export default function Settings() {
                   </>
                 )}
                 {activeTeamSection === 'metrics' && isMetricsExpanded && (
-                  <CustomMetricDefinitionsManager />
+                  <>
+                    {/* Metrics Tabs Navigation */}
+                    <div className="mb-6 border-b border-gray-200">
+                      <nav className="flex space-x-8" aria-label="Metrics Tabs">
+                        <button
+                          onClick={() => {
+                            setActiveMetricsTab('add-metrics')
+                            window.location.hash = 'team-metrics-add-metrics'
+                          }}
+                          className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeMetricsTab === 'add-metrics'
+                              ? 'border-blue-500 text-blue-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          Add Metrics
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveMetricsTab('delivery-channel')
+                            window.location.hash = 'team-metrics-delivery-channel'
+                          }}
+                          className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeMetricsTab === 'delivery-channel'
+                              ? 'border-blue-500 text-blue-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          Delivery Channel
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveMetricsTab('message-template')
+                            window.location.hash = 'team-metrics-message-template'
+                          }}
+                          className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeMetricsTab === 'message-template'
+                              ? 'border-blue-500 text-blue-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          Configure Message Template
+                        </button>
+                      </nav>
+                    </div>
+                    {/* Metrics Tab Content */}
+                    {activeMetricsTab === 'add-metrics' && (
+                      <CustomMetricDefinitionsManager />
+                    )}
+                    {activeMetricsTab === 'delivery-channel' && (
+                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Delivery Channel</h2>
+                        <p className="text-gray-600">Delivery channel settings will be available here.</p>
+                      </div>
+                    )}
+                    {activeMetricsTab === 'message-template' && (
+                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Configure Message Template</h2>
+                        <p className="text-gray-600">Message template configuration will be available here.</p>
+                      </div>
+                    )}
+                  </>
                 )}
                 {activeTeamSection === 'automations' && isAutomationsExpanded && (
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
