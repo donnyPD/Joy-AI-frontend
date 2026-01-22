@@ -65,7 +65,7 @@ export default function Settings() {
             <div className="flex items-center gap-3">
               <Link
                 to="/settings"
-                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                className="p-2 text-[#E91E63] hover:text-[#C2185B] transition-colors"
                 title="Settings"
               >
                 <SettingsIcon className="w-5 h-5" />
@@ -88,7 +88,7 @@ export default function Settings() {
           <aside className="w-64 flex-shrink-0">
             <div className="sticky top-20">
               <div className="flex items-center gap-2 mb-6">
-                <SettingsIcon className="h-5 w-5 text-gray-700" />
+                <SettingsIcon className="h-5 w-5 text-[#E91E63]" />
                 <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
               </div>
 
@@ -97,7 +97,7 @@ export default function Settings() {
                 <div>
                   <button
                     onClick={() => setIsTeamExpanded(!isTeamExpanded)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-900 bg-blue-50 hover:bg-blue-100 transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-900 bg-gray-50 hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
@@ -123,7 +123,7 @@ export default function Settings() {
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeTeamSection === 'option-management'
-                              ? 'text-gray-900 bg-gray-100'
+                              ? 'text-[#E91E63] bg-gray-100'
                               : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
@@ -150,7 +150,7 @@ export default function Settings() {
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             activeTeamSection === 'metrics'
-                              ? 'text-gray-900 bg-gray-100'
+                              ? 'text-[#E91E63] bg-gray-100'
                               : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
@@ -182,7 +182,7 @@ export default function Settings() {
                     onClick={() => setActiveSubsection('types')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                       activeSubsection === 'types'
-                        ? 'border-blue-500 text-blue-600'
+                        ? 'border-[#E91E63] text-[#E91E63]'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -192,7 +192,7 @@ export default function Settings() {
                     onClick={() => setActiveSubsection('statuses')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                       activeSubsection === 'statuses'
-                        ? 'border-blue-500 text-blue-600'
+                        ? 'border-[#E91E63] text-[#E91E63]'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >

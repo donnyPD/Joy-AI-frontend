@@ -97,7 +97,7 @@ export default function TeamMemberDetail() {
   const { data: member, isLoading } = useTeamMember(id)
   const updateMutation = useUpdateTeamMember()
 
-  // Edit state for sections
+  // Edit state for sections - now using dialogs
   const [editingSection, setEditingSection] = useState<'contact' | 'personal' | 'employment' | null>(null)
   const [editFormData, setEditFormData] = useState<{
     email?: string
@@ -622,7 +622,7 @@ export default function TeamMemberDetail() {
             <div className="mt-4 text-center">
               <Link
                 to="/operations/team"
-                className="text-blue-600 hover:text-blue-800"
+                className="text-[#E91E63] hover:text-[#C2185B]"
               >
                 Back to Team
               </Link>
@@ -634,7 +634,7 @@ export default function TeamMemberDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header Navigation */}
       <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -713,7 +713,7 @@ export default function TeamMemberDetail() {
                 className="w-24 h-24 rounded-full object-cover flex-shrink-0"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
+              <div className="w-24 h-24 rounded-full bg-[#E91E63] flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
                 {getInitials(member.name)}
               </div>
             )}
@@ -776,78 +776,97 @@ export default function TeamMemberDetail() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Contact Information</h2>
-              {editingSection !== 'contact' && (
-                <button
-                  onClick={() => handleStartEdit('contact')}
-                  className="text-gray-800 hover:text-gray-900 transition-colors"
-                  title="Edit Contact Information"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={() => handleStartEdit('contact')}
+                className="text-gray-800 hover:text-gray-900 transition-colors"
+                title="Edit Contact Information"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
             </div>
-            {editingSection === 'contact' ? (
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <div className="flex-1">
-                    <label className="block text-sm text-gray-800 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={editFormData.email || ''}
-                      onChange={(e) => handleFieldChange('email', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+            {editingSection === 'contact' && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4">
+                  <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-semibold text-gray-900">Edit Contact Information</h2>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-gray-400 hover:text-gray-600"
+                      disabled={updateMutation.isPending}
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <div className="flex-1">
-                    <label className="block text-sm text-gray-800 mb-1">Phone</label>
-                    <input
-                      type="text"
-                      value={editFormData.phone || ''}
-                      onChange={(e) => handleFieldChange('phone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                  <div className="p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <div className="flex-1">
+                          <label className="block text-sm text-gray-800 mb-1">Email</label>
+                          <input
+                            type="email"
+                            value={editFormData.email || ''}
+                            onChange={(e) => handleFieldChange('email', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        <div className="flex-1">
+                          <label className="block text-sm text-gray-800 mb-1">Phone</label>
+                          <input
+                            type="text"
+                            value={editFormData.phone || ''}
+                            onChange={(e) => handleFieldChange('phone', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <label className="block text-sm text-gray-800 mb-1">Address</label>
+                          <textarea
+                            value={editFormData.address || ''}
+                            onChange={(e) => handleFieldChange('address', e.target.value)}
+                            rows={2}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                          disabled={updateMutation.isPending}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={updateMutation.isPending}
+                          className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 transition-colors"
+                          style={{ backgroundColor: '#E91E63' }}
+                          onMouseEnter={(e) => !updateMutation.isPending && (e.currentTarget.style.backgroundColor = '#C2185B')}
+                          onMouseLeave={(e) => !updateMutation.isPending && (e.currentTarget.style.backgroundColor = '#E91E63')}
+                        >
+                          {updateMutation.isPending ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <div className="flex-1">
-                    <label className="block text-sm text-gray-800 mb-1">Address</label>
-                    <textarea
-                      value={editFormData.address || ''}
-                      onChange={(e) => handleFieldChange('address', e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    onClick={handleCancelEdit}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveEdit}
-                    disabled={updateMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {updateMutation.isPending ? 'Saving...' : 'Save'}
-                  </button>
                 </div>
               </div>
-            ) : (
+            )}
+            {editingSection !== 'contact' && (
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -885,77 +904,96 @@ export default function TeamMemberDetail() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
-              {editingSection !== 'personal' && (
-                <button
-                  onClick={() => handleStartEdit('personal')}
-                  className="text-gray-800 hover:text-gray-900 transition-colors"
-                  title="Edit Personal Information"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={() => handleStartEdit('personal')}
+                className="text-gray-800 hover:text-gray-900 transition-colors"
+                title="Edit Personal Information"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
             </div>
-            {editingSection === 'personal' ? (
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div className="flex-1">
-                    <label className="block text-sm text-gray-800 mb-1">Birthday</label>
-                    <input
-                      type="date"
-                      value={editFormData.birthday || ''}
-                      onChange={(e) => handleFieldChange('birthday', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+            {editingSection === 'personal' && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4">
+                  <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-semibold text-gray-900">Edit Personal Information</h2>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-gray-400 hover:text-gray-600"
+                      disabled={updateMutation.isPending}
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div className="flex-1">
-                    <label className="block text-sm text-gray-800 mb-1">Primary Language</label>
-                    <input
-                      type="text"
-                      value={editFormData.primaryLanguage || ''}
-                      onChange={(e) => handleFieldChange('primaryLanguage', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                  <div className="p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <label className="block text-sm text-gray-800 mb-1">Birthday</label>
+                          <input
+                            type="date"
+                            value={editFormData.birthday || ''}
+                            onChange={(e) => handleFieldChange('birthday', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <label className="block text-sm text-gray-800 mb-1">Primary Language</label>
+                          <input
+                            type="text"
+                            value={editFormData.primaryLanguage || ''}
+                            onChange={(e) => handleFieldChange('primaryLanguage', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <div className="flex-1">
+                          <label className="block text-sm text-gray-800 mb-1">Work Start Date</label>
+                          <input
+                            type="date"
+                            value={editFormData.workStartDate || ''}
+                            onChange={(e) => handleFieldChange('workStartDate', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                          disabled={updateMutation.isPending}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={updateMutation.isPending}
+                          className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 transition-colors"
+                          style={{ backgroundColor: '#E91E63' }}
+                          onMouseEnter={(e) => !updateMutation.isPending && (e.currentTarget.style.backgroundColor = '#C2185B')}
+                          onMouseLeave={(e) => !updateMutation.isPending && (e.currentTarget.style.backgroundColor = '#E91E63')}
+                        >
+                          {updateMutation.isPending ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <div className="flex-1">
-                    <label className="block text-sm text-gray-800 mb-1">Work Start Date</label>
-                    <input
-                      type="date"
-                      value={editFormData.workStartDate || ''}
-                      onChange={(e) => handleFieldChange('workStartDate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    onClick={handleCancelEdit}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveEdit}
-                    disabled={updateMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {updateMutation.isPending ? 'Saving...' : 'Save'}
-                  </button>
                 </div>
               </div>
-            ) : (
+            )}
+            {editingSection !== 'personal' && (
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1001,83 +1039,102 @@ export default function TeamMemberDetail() {
                 </svg>
                 Employment Details
               </h2>
-              {editingSection !== 'employment' && (
-                <button
-                  onClick={() => handleStartEdit('employment')}
-                  className="text-gray-800 hover:text-gray-900 transition-colors"
-                  title="Edit Employment Details"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={() => handleStartEdit('employment')}
+                className="text-gray-800 hover:text-gray-900 transition-colors"
+                title="Edit Employment Details"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
             </div>
-            {editingSection === 'employment' ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
-                  </svg>
-                    <div className="flex-1">
-                      <label className="block text-sm text-gray-800 mb-1">Training Start Date</label>
-                      <input
-                        type="date"
-                        value={editFormData.trainingStartDate || ''}
-                        onChange={(e) => handleFieldChange('trainingStartDate', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+            {editingSection === 'employment' && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-semibold text-gray-900">Edit Employment Details</h2>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-gray-400 hover:text-gray-600"
+                      disabled={updateMutation.isPending}
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="p-6">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="flex items-start gap-3">
+                          <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                          </svg>
+                          <div className="flex-1">
+                            <label className="block text-sm text-gray-800 mb-1">Training Start Date</label>
+                            <input
+                              type="date"
+                              value={editFormData.trainingStartDate || ''}
+                              onChange={(e) => handleFieldChange('trainingStartDate', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
+                          </svg>
+                          <div className="flex-1">
+                            <label className="block text-sm text-gray-800 mb-1">Training End Date</label>
+                            <input
+                              type="date"
+                              value={editFormData.trainingEndDate || ''}
+                              onChange={(e) => handleFieldChange('trainingEndDate', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <div className="flex-1">
+                            <label className="block text-sm text-gray-800 mb-1">Joining Date</label>
+                            <input
+                              type="date"
+                              value={editFormData.workStartDate || ''}
+                              onChange={(e) => handleFieldChange('workStartDate', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                          disabled={updateMutation.isPending}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={updateMutation.isPending}
+                          className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 transition-colors"
+                          style={{ backgroundColor: '#E91E63' }}
+                          onMouseEnter={(e) => !updateMutation.isPending && (e.currentTarget.style.backgroundColor = '#C2185B')}
+                          onMouseLeave={(e) => !updateMutation.isPending && (e.currentTarget.style.backgroundColor = '#E91E63')}
+                        >
+                          {updateMutation.isPending ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3">
-                  <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14v6.055" />
-                  </svg>
-                    <div className="flex-1">
-                      <label className="block text-sm text-gray-800 mb-1">Training End Date</label>
-                      <input
-                        type="date"
-                        value={editFormData.trainingEndDate || ''}
-                        onChange={(e) => handleFieldChange('trainingEndDate', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 text-gray-800 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <div className="flex-1">
-                      <label className="block text-sm text-gray-800 mb-1">Joining Date</label>
-                      <input
-                        type="date"
-                        value={editFormData.workStartDate || ''}
-                        onChange={(e) => handleFieldChange('workStartDate', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    onClick={handleCancelEdit}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveEdit}
-                    disabled={updateMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {updateMutation.isPending ? 'Saving...' : 'Save'}
-                  </button>
                 </div>
               </div>
-            ) : (
+            )}
+            {editingSection !== 'employment' && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {member.trainingStartDate && (
                   <div className="flex items-start gap-3">
@@ -1178,7 +1235,7 @@ export default function TeamMemberDetail() {
                             onClick={() => setSelectedKpi({ type: metric.id, name: metric.name, isCustom: true, customMetric: metric })}
                             className={`p-3 rounded-lg cursor-pointer transition-all border ${
                               isSelected
-                                ? 'bg-blue-50 border-blue-500'
+                                ? 'bg-pink-50 border-[#E91E63]'
                                 : 'bg-white hover:bg-gray-50 border-gray-200'
                             }`}
                           >
@@ -1222,7 +1279,7 @@ export default function TeamMemberDetail() {
                             onClick={() => setSelectedNote(note)}
                             className={`p-3 rounded-lg transition-all border cursor-pointer ${
                               isSelected
-                                ? 'bg-blue-50 border-blue-500'
+                                ? 'bg-pink-50 border-[#E91E63]'
                                 : 'bg-white hover:bg-gray-50 border-gray-200'
                             }`}
                           >
@@ -1236,7 +1293,7 @@ export default function TeamMemberDetail() {
                                   e.stopPropagation()
                                   handleEditNote(note)
                                 }}
-                                className="p-1 text-gray-800 hover:text-blue-600 transition-colors"
+                                className="p-1 text-gray-800 hover:text-[#E91E63] transition-colors"
                                 disabled={deleteNoteMutation.isPending}
                                 title="Edit note"
                               >
@@ -1278,7 +1335,7 @@ export default function TeamMemberDetail() {
                             key={purchase.id}
                             className={`p-3 rounded-lg transition-all border ${
                               isSelected
-                                ? 'bg-blue-50 border-blue-500'
+                                ? 'bg-pink-50 border-[#E91E63]'
                                 : 'bg-white hover:bg-gray-50 border-gray-200'
                             }`}
                           >
@@ -1300,7 +1357,7 @@ export default function TeamMemberDetail() {
                                   e.stopPropagation()
                                   handleEditPurchase(purchase)
                                 }}
-                                className="p-1 text-gray-800 hover:text-blue-600 transition-colors"
+                                className="p-1 text-gray-800 hover:text-[#E91E63] transition-colors"
                                 disabled={updatePurchaseMutation.isPending || deletePurchaseMutation.isPending}
                                 title="Edit purchase"
                               >
@@ -1355,7 +1412,7 @@ export default function TeamMemberDetail() {
                         setSelectedCustomMetric(selectedKpi.customMetric!)
                         setCustomMetricDialogOpen(true)
                       }}
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                      className="px-3 py-1 bg-[#E91E63] text-white rounded text-sm hover:bg-[#C2185B]"
                     >
                       Add Entry
                     </button>
@@ -1363,7 +1420,7 @@ export default function TeamMemberDetail() {
                   {activeTab === 'notes' && (
                     <button
                       onClick={() => setNoteDialogOpen(true)}
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                      className="px-3 py-1 bg-[#E91E63] text-white rounded text-sm hover:bg-[#C2185B]"
                     >
                       Add Note
                     </button>
@@ -1476,7 +1533,7 @@ export default function TeamMemberDetail() {
                                     )}
                                     <button
                                       onClick={() => handleEditKpiEntry(entry)}
-                                      className="p-1 text-gray-800 hover:text-blue-600 transition-colors"
+                                      className="p-1 text-gray-800 hover:text-[#E91E63] transition-colors"
                                       disabled={updateKpiEntryMutation.isPending}
                                       title="Edit entry"
                                     >
@@ -1710,7 +1767,7 @@ export default function TeamMemberDetail() {
                 <button
                   onClick={confirmEditPurchase}
                   disabled={updatePurchaseMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:opacity-50"
                 >
                   {updatePurchaseMutation.isPending ? 'Updating...' : 'Update'}
                 </button>
@@ -1815,7 +1872,7 @@ export default function TeamMemberDetail() {
                             type="date"
                             value={value}
                             onChange={(e) => handleEditFieldChange(field.id, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                           />
                         )}
 
@@ -1825,7 +1882,7 @@ export default function TeamMemberDetail() {
                             value={value}
                             onChange={(e) => handleEditFieldChange(field.id, e.target.value)}
                             rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                             placeholder={`Enter ${field.name.toLowerCase()}...`}
                           />
                         )}
@@ -1838,7 +1895,7 @@ export default function TeamMemberDetail() {
                             min="0"
                             value={value}
                             onChange={(e) => handleEditFieldChange(field.id, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                             placeholder={field.type === 'dollarValue' ? '0.00' : '0'}
                           />
                         )}
@@ -1893,7 +1950,7 @@ export default function TeamMemberDetail() {
                                   // Reset the input so the same file can be selected again
                                   e.target.value = ''
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                               />
                               {field.type === 'image' && value && (value.startsWith('data:image/') || value.startsWith('http://') || value.startsWith('https://')) && (
                                 <p className="mt-1 text-xs text-gray-500">
@@ -1956,7 +2013,7 @@ export default function TeamMemberDetail() {
                 <button
                   onClick={confirmEditEntry}
                   disabled={updateKpiEntryMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:opacity-50"
                 >
                   {updateKpiEntryMutation.isPending ? 'Updating...' : 'Update'}
                 </button>
