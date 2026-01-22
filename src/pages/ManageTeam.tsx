@@ -196,7 +196,7 @@ export default function ManageTeam() {
                 <span className="text-white">Add User</span>
               </button>
               <Link
-                to="/settings"
+                to="/settings#team-team-members-types"
                 className="w-9 h-9 flex items-center justify-center text-gray-800 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 title="Settings"
               >

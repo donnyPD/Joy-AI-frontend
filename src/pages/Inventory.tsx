@@ -566,7 +566,7 @@ export default function Inventory() {
                             setSelectedCategory(category)
                             setShowAddItemDialog(true)
                           }}
-                          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                          className="px-3 py-1 text-sm bg-[#E91E63] text-white rounded hover:bg-[#C2185B]"
                         >
                           + Add Item
                         </button>
@@ -799,7 +799,7 @@ export default function Inventory() {
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <button
                   onClick={() => setShowAddCategoryDialog(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-4 py-2 bg-[#E91E63] text-white rounded hover:bg-[#C2185B]"
                 >
                   + Add New Category
                 </button>
@@ -1079,7 +1079,7 @@ function AddItemDialog({
             <button
               type="submit"
               disabled={createMutation.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:opacity-50"
             >
               {createMutation.isPending ? 'Adding...' : 'Add Item'}
             </button>
@@ -1139,7 +1139,7 @@ function AddCategoryDialog({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B]"
             >
               Create Category
             </button>

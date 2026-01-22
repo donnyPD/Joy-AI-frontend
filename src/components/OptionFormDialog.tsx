@@ -82,7 +82,7 @@ export default function OptionFormDialog({
                 setName(e.target.value)
                 if (error) setError('')
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
               placeholder="Enter name"
               disabled={isPending}
             />
@@ -100,7 +100,7 @@ export default function OptionFormDialog({
               id="isActive"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-[#E91E63] focus:ring-[#E91E63] border-gray-300 rounded"
               disabled={isPending}
             />
           </div>
@@ -117,7 +117,7 @@ export default function OptionFormDialog({
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:opacity-50"
             >
               {isPending ? 'Saving...' : initialData ? 'Update' : 'Create'}
             </button>
