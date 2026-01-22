@@ -20,6 +20,7 @@ export default function Integration() {
   const hasToken = !!(token || localStorage.getItem('accessToken'))
   const [isUserChecking, setIsUserChecking] = useState(false)
   const hasRequestedUser = useRef(false)
+  const hasShownSubscriptionToast = useRef(false)
   const isCheckingConnection = isAuthLoading || isUserChecking
 
   useEffect(() => {
@@ -33,18 +34,32 @@ export default function Integration() {
     }
 
     const params = new URLSearchParams(window.location.search)
+    
+    // Handle subscription success
+    if ((params.get('subscription') === 'success' || params.get('session_id')) && !hasShownSubscriptionToast.current) {
+      hasShownSubscriptionToast.current = true
+      toast.success('🎉 Subscription activated successfully! Welcome to Joy AI.')
+      dispatch(getMe()).then(() => {
+        navigate('/intergation', { replace: true })
+      })
+      return
+    }
+    
+    // Handle Jobber connection
     if (params.get('connected') === 'true') {
       toast.success('Jobber account connected successfully!')
       dispatch(getMe())
       navigate('/intergation', { replace: true })
     }
+    
+    // Handle errors
     if (params.get('error')) {
       const message = decodeURIComponent(params.get('error') || '')
       setError(message)
       toast.error(message)
       navigate('/intergation', { replace: true })
     }
-  }, [dispatch, navigate])
+  }, [dispatch, navigate, hasToken])
 
   const handleConnectJobber = async () => {
     setError('')

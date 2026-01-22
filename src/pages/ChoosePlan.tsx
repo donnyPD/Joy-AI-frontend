@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppSelector } from '../store/hooks'
+import toast from 'react-hot-toast'
+import api from '../services/api'
 
 const PINK_COLOR = '#E80379'
 
@@ -20,7 +22,6 @@ const plans: Plan[] = [
     price: '$0',
     description: 'Perfect for trying out our platform',
     features: [
-      '14-day free trial',
       'Basic features access',
       'Email support',
       'Up to 5 team members'
@@ -70,26 +71,46 @@ const plans: Plan[] = [
 
 export default function ChoosePlan() {
   const navigate = useNavigate()
-  const { isAuthenticated } = useAppSelector((state) => state.auth)
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/signin')
+      return
     }
-  }, [isAuthenticated, navigate])
+    if (isAuthenticated && user?.isSubscribed) {
+      navigate('/dashboard')
+      return
+    }
+
+    // Handle canceled payment
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('canceled') === 'true') {
+      toast.error('Payment was canceled. You can try again anytime.')
+      navigate('/choose-plan', { replace: true })
+    }
+  }, [isAuthenticated, user, navigate])
 
   const handlePlanSelect = async (planId: string) => {
     setSelectedPlan(planId)
     setIsLoading(true)
     
-    // Simulate API call or plan selection logic
-    // In a real app, you would save the selected plan here
-    setTimeout(() => {
+    try {
+      const response = await api.post('/billing/checkout-session', {
+        planKey: planId,
+      })
+      const url = response.data?.url
+      if (url) {
+        window.location.href = url
+        return
+      }
+    } catch (error) {
+      console.error('Failed to create checkout session:', error)
+    } finally {
       setIsLoading(false)
-      navigate('/intergation')
-    }, 500)
+    }
   }
 
   if (!isAuthenticated) {
