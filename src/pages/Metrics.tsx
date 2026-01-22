@@ -109,7 +109,7 @@ export default function Metrics() {
               onClick={() => setActiveTab('add-metrics')}
               className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
                 activeTab === 'add-metrics'
-                  ? 'border-blue-600 text-blue-600'
+                  ? 'border-[#E91E63] text-[#E91E63]'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -120,7 +120,7 @@ export default function Metrics() {
               onClick={() => setActiveTab('summary')}
               className={`px-4 py-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${
                 activeTab === 'summary'
-                  ? 'border-blue-600 text-blue-600'
+                  ? 'border-[#E91E63] text-[#E91E63]'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >

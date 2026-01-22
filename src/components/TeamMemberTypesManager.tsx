@@ -85,7 +85,7 @@ export default function TeamMemberTypesManager() {
         </div>
         <button
           onClick={handleCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="px-4 py-2 bg-[#E91E63] text-white rounded-lg hover:bg-[#C2185B] flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
           Add Type

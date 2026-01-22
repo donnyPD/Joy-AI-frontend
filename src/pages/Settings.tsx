@@ -220,7 +220,7 @@ export default function Settings() {
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeMainSection === 'global-settings'
-                        ? 'text-gray-900 bg-blue-50 hover:bg-blue-100'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
@@ -243,7 +243,7 @@ export default function Settings() {
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeMainSection === 'team'
-                        ? 'text-gray-900 bg-blue-50 hover:bg-blue-100'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
@@ -371,7 +371,7 @@ export default function Settings() {
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeMainSection === 'service'
-                        ? 'text-gray-900 bg-blue-50 hover:bg-blue-100'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
@@ -443,7 +443,7 @@ export default function Settings() {
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeMainSection === 'knowledge-base'
-                        ? 'text-gray-900 bg-blue-50 hover:bg-blue-100'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
@@ -530,7 +530,7 @@ export default function Settings() {
                         }}
                         className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                           activeSubsection === 'types'
-                            ? 'border-blue-500 text-blue-600'
+                            ? 'border-[#E91E63] text-[#E91E63]'
                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                       >
@@ -543,7 +543,7 @@ export default function Settings() {
                         }}
                         className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                           activeSubsection === 'statuses'
-                            ? 'border-blue-500 text-blue-600'
+                            ? 'border-[#E91E63] text-[#E91E63]'
                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                       >
@@ -571,7 +571,7 @@ export default function Settings() {
                           }}
                           className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                             activeMetricsTab === 'add-metrics'
-                              ? 'border-blue-500 text-blue-600'
+                              ? 'border-[#E91E63] text-[#E91E63]'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                         >
@@ -584,7 +584,7 @@ export default function Settings() {
                           }}
                           className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                             activeMetricsTab === 'delivery-channel'
-                              ? 'border-blue-500 text-blue-600'
+                              ? 'border-[#E91E63] text-[#E91E63]'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                         >
@@ -597,7 +597,7 @@ export default function Settings() {
                           }}
                           className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                             activeMetricsTab === 'message-template'
-                              ? 'border-blue-500 text-blue-600'
+                              ? 'border-[#E91E63] text-[#E91E63]'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                         >

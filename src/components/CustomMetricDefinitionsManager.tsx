@@ -187,7 +187,7 @@ export default function CustomMetricDefinitionsManager() {
             </div>
             <button
               onClick={openCreateForm}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] transition-colors flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               Add Metric
@@ -297,7 +297,7 @@ export default function CustomMetricDefinitionsManager() {
                     value={formData.name}
                     onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g., Customer Complaints"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -305,7 +305,7 @@ export default function CustomMetricDefinitionsManager() {
                   <select
                     value={formData.color}
                     onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                   >
                     {COLOR_OPTIONS.map((color) => (
                       <option key={color.value} value={color.value}>
@@ -342,7 +342,7 @@ export default function CustomMetricDefinitionsManager() {
                     onChange={(e) => setFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E91E63]"></div>
                 </label>
               </div>
 
@@ -394,7 +394,7 @@ export default function CustomMetricDefinitionsManager() {
                             value={field.name}
                             onChange={(e) => updateField(field.id, { name: e.target.value })}
                             placeholder="e.g., Incident Date"
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                           />
                         </div>
                         <div className="space-y-1">
@@ -404,7 +404,7 @@ export default function CustomMetricDefinitionsManager() {
                             onChange={(e) =>
                               updateField(field.id, { type: e.target.value as MetricField['type'] })
                             }
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                           >
                             {FIELD_TYPE_OPTIONS.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -423,7 +423,7 @@ export default function CustomMetricDefinitionsManager() {
                               onChange={(e) => updateField(field.id, { required: e.target.checked })}
                               className="sr-only peer"
                             />
-                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#E91E63]"></div>
                           </label>
                           <span className="text-xs text-gray-700">Required</span>
                         </div>
@@ -456,7 +456,7 @@ export default function CustomMetricDefinitionsManager() {
               <button
                 onClick={handleSubmit}
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 {createMutation.isPending || updateMutation.isPending ? (
                   <>
