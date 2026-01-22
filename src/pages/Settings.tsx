@@ -1,37 +1,51 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link, useSearchParams } from 'react-router-dom'
-import { useAppDispatch } from '../store/hooks'
-import { logout } from '../features/auth/authSlice'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { getMe } from '../features/auth/authApi'
+import { getOAuthUrl, disconnectJobber } from '../features/jobber/jobberApi'
 import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3, Zap, Briefcase, BookOpen, Calendar, Bell, Info, FileText, Globe } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import SidebarLayout from '../components/SidebarLayout'
 import TeamMemberTypesManager from '../components/TeamMemberTypesManager'
 import TeamMemberStatusesManager from '../components/TeamMemberStatusesManager'
 import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
 
+const PINK_COLOR = '#E91E63'
+const PINK_DARK = '#C2185B'
+
+type IntegrationSubsection = 'google' | 'slack' | 'jobber'
 type OptionSubsection = 'types' | 'statuses'
-type TeamSection = 'metrics' | 'automations' | 'team-members'
+type MainSection = 'global-settings' | 'automations' | 'team' | 'service' | 'knowledge-base'
+type TeamSection = 'metrics' | 'team-members'
 type ServiceSection = 'scheduling' | 'notifications'
 type KnowledgeBaseSection = 'fallback-response' | 'response-format'
-type MainSection = 'global-settings' | 'team' | 'service' | 'knowledge-base'
 type MetricsTab = 'add-metrics' | 'delivery-channel' | 'message-template'
 
 export default function Settings() {
-  const navigate = useNavigate()
   const dispatch = useAppDispatch()
+  const { user } = useAppSelector((state) => state.auth)
+  const { isLoading: isConnecting } = useAppSelector((state) => state.jobber || { isLoading: false })
   const [searchParams] = useSearchParams()
-  const [activeSubsection, setActiveSubsection] = useState<OptionSubsection>('types')
+  
   const [activeMainSection, setActiveMainSection] = useState<MainSection>('global-settings')
+  const [activeAutomationSubsection, setActiveAutomationSubsection] = useState<IntegrationSubsection>('jobber')
   const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('team-members')
   const [activeServiceSection, setActiveServiceSection] = useState<ServiceSection>('scheduling')
   const [activeKnowledgeBaseSection, setActiveKnowledgeBaseSection] = useState<KnowledgeBaseSection>('fallback-response')
+  const [activeOptionSubsection, setActiveOptionSubsection] = useState<OptionSubsection>('types')
+  const [activeMetricsTab, setActiveMetricsTab] = useState<MetricsTab>('add-metrics')
   
-  const [isTeamExpanded, setIsTeamExpanded] = useState(true)
+  const [isAutomationsExpanded, setIsAutomationsExpanded] = useState(false)
+  const [isTeamExpanded, setIsTeamExpanded] = useState(false)
   const [isServiceExpanded, setIsServiceExpanded] = useState(false)
   const [isKnowledgeBaseExpanded, setIsKnowledgeBaseExpanded] = useState(false)
-  
-  const [isTeamMembersExpanded, setIsTeamMembersExpanded] = useState(true)
   const [isMetricsExpanded, setIsMetricsExpanded] = useState(false)
-  const [isAutomationsExpanded, setIsAutomationsExpanded] = useState(false)
-  const [activeMetricsTab, setActiveMetricsTab] = useState<MetricsTab>('add-metrics')
+  const [isTeamMembersExpanded, setIsTeamMembersExpanded] = useState(false)
+  
+  const [error, setError] = useState('')
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false)
+
+  const isJobberConnected = !!user?.jobberAccessToken
 
   // Helper function to parse hash and update state
   const parseHashAndUpdateState = (hash: string) => {
@@ -51,6 +65,21 @@ export default function Settings() {
       return
     }
 
+    // Handle automations sections
+    if (parts[0] === 'automations') {
+      setActiveMainSection('automations')
+      setIsAutomationsExpanded(true)
+      
+      if (parts[1] === 'google') {
+        setActiveAutomationSubsection('google')
+      } else if (parts[1] === 'slack') {
+        setActiveAutomationSubsection('slack')
+      } else if (parts[1] === 'jobber') {
+        setActiveAutomationSubsection('jobber')
+      }
+      return
+    }
+
     // Handle team sections
     if (parts[0] === 'team') {
       setActiveMainSection('team')
@@ -60,7 +89,6 @@ export default function Settings() {
         setActiveTeamSection('metrics')
         setIsMetricsExpanded(true)
         setIsTeamMembersExpanded(false)
-        setIsAutomationsExpanded(false)
         
         // Handle metrics tabs
         if (parts[2] === 'add' && parts[3] === 'metrics') {
@@ -70,22 +98,16 @@ export default function Settings() {
         } else if (parts[2] === 'message' && parts[3] === 'template') {
           setActiveMetricsTab('message-template')
         }
-      } else if (parts[1] === 'automations') {
-        setActiveTeamSection('automations')
-        setIsAutomationsExpanded(true)
-        setIsTeamMembersExpanded(false)
-        setIsMetricsExpanded(false)
       } else if (parts[1] === 'team' && parts[2] === 'members') {
         setActiveTeamSection('team-members')
         setIsTeamMembersExpanded(true)
         setIsMetricsExpanded(false)
-        setIsAutomationsExpanded(false)
         
         // Handle team members subsections
         if (parts[3] === 'types') {
-          setActiveSubsection('types')
+          setActiveOptionSubsection('types')
         } else if (parts[3] === 'statuses') {
-          setActiveSubsection('statuses')
+          setActiveOptionSubsection('statuses')
         }
       }
       return
@@ -149,64 +171,87 @@ export default function Settings() {
     }
   }, [searchParams])
 
-  const handleSignOut = () => {
-    dispatch(logout())
-    navigate('/signin')
+  // Preserve existing Jobber connection useEffect
+  useEffect(() => {
+    if (user) {
+      setIsCheckingConnection(false)
+    }
+
+    // Handle Jobber connection callback
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('connected') === 'true') {
+      toast.success('Jobber account connected successfully!')
+      dispatch(getMe())
+      // Clean URL
+      window.history.replaceState({}, '', '/settings')
+    }
+
+    // Handle errors
+    if (params.get('error')) {
+      const message = decodeURIComponent(params.get('error') || '')
+      setError(message)
+      toast.error(message)
+      window.history.replaceState({}, '', '/settings')
+    }
+  }, [user, dispatch])
+
+  const handleConnectJobber = async () => {
+    setError('')
+    try {
+      const toastId = toast.loading('Opening Jobber authorization...')
+      const result = await dispatch(getOAuthUrl()).unwrap()
+      if (result?.authUrl) {
+        const newTab = window.open(result.authUrl, '_blank', 'noopener,noreferrer')
+        if (!newTab) {
+          toast.error('Popup blocked. Please allow popups and try again.')
+        } else {
+          toast.success('Jobber opened in new tab. Complete authorization there.')
+        }
+      } else {
+        setError('Failed to get OAuth URL. Please try again.')
+        toast.error('Failed to get OAuth URL. Please try again.')
+      }
+      toast.dismiss(toastId)
+    } catch (err: any) {
+      console.error('OAuth URL error:', err)
+      setError(err || 'Failed to connect Jobber account. Please try again.')
+      toast.error(err || 'Failed to connect Jobber account. Please try again.')
+      toast.dismiss()
+    }
+  }
+
+  const handleDisconnectJobber = async () => {
+    setError('')
+    try {
+      const toastId = toast.loading('Disconnecting Jobber...')
+      await dispatch(disconnectJobber()).unwrap()
+      await dispatch(getMe())
+      toast.success('Jobber disconnected. You can connect again now.')
+      toast.dismiss(toastId)
+    } catch (err: any) {
+      console.error('Disconnect error:', err)
+      toast.error(err || 'Failed to disconnect Jobber')
+      toast.dismiss()
+    }
+  }
+
+  const handleConnectGoogle = () => {
+    toast('Google integration coming soon!')
+  }
+
+  const handleConnectSlack = () => {
+    toast('Slack integration coming soon!')
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <Link to="/dashboard" className="text-xl font-bold text-gray-900">
-                JOY AI
-              </Link>
-              <Link to="/clients" className="text-gray-700 hover:text-gray-900 font-medium">
-                Clients
-              </Link>
-              <Link to="/quotes" className="text-gray-700 hover:text-gray-900 font-medium">
-                Quotes
-              </Link>
-              <Link to="/jobs" className="text-gray-700 hover:text-gray-900 font-medium">
-                Jobs
-              </Link>
-              <Link to="/operations" className="text-gray-700 hover:text-gray-900 font-medium">
-                Operations
-              </Link>
-              <Link to="/services" className="text-gray-700 hover:text-gray-900 font-medium">
-                Services
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link
-                to="/settings"
-                className="p-2 text-[#E91E63] hover:text-[#C2185B] transition-colors"
-                title="Settings"
-              >
-                <SettingsIcon className="w-5 h-5" />
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-joy-pink border border-gray-300 rounded-lg hover:border-joy-pink transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
-          {/* Sidebar */}
+    <SidebarLayout>
+      <div className="bg-white rounded-2xl border border-[#EFEFEF] shadow-sm">
+        <div className="flex gap-8 p-6">
+          {/* Settings Sidebar */}
           <aside className="w-64 flex-shrink-0">
             <div className="sticky top-20">
               <div className="flex items-center gap-2 mb-6">
-                <SettingsIcon className="h-5 w-5 text-[#E91E63]" />
+                <SettingsIcon className="h-5 w-5 text-gray-700" />
                 <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
               </div>
 
@@ -231,6 +276,80 @@ export default function Settings() {
                   </button>
                 </div>
 
+                {/* Automations Section */}
+                <div>
+                  <button
+                    onClick={() => {
+                      setIsAutomationsExpanded(!isAutomationsExpanded)
+                      if (!isAutomationsExpanded) {
+                        setActiveMainSection('automations')
+                        window.location.hash = 'automations-jobber'
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeMainSection === 'automations'
+                        ? 'text-gray-900 bg-blue-50 hover:bg-blue-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      <span>Automations</span>
+                    </div>
+                    {isAutomationsExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  {isAutomationsExpanded && (
+                    <div className="pl-4 mt-1 space-y-1">
+                      <button
+                        onClick={() => {
+                          setActiveMainSection('automations')
+                          setActiveAutomationSubsection('google')
+                          window.location.hash = 'automations-google'
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          activeMainSection === 'automations' && activeAutomationSubsection === 'google'
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        }`}
+                      >
+                        Google Automation
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveMainSection('automations')
+                          setActiveAutomationSubsection('slack')
+                          window.location.hash = 'automations-slack'
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          activeMainSection === 'automations' && activeAutomationSubsection === 'slack'
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        }`}
+                      >
+                        Slack Integration
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveMainSection('automations')
+                          setActiveAutomationSubsection('jobber')
+                          window.location.hash = 'automations-jobber'
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          activeMainSection === 'automations' && activeAutomationSubsection === 'jobber'
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        }`}
+                      >
+                        Jobber Integration
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Team Section */}
                 <div>
                   <button
@@ -238,7 +357,7 @@ export default function Settings() {
                       setIsTeamExpanded(!isTeamExpanded)
                       if (!isTeamExpanded) {
                         setActiveMainSection('team')
-                        window.location.hash = 'team-team-members'
+                        window.location.hash = 'team-team-members-types'
                       }
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -259,19 +378,16 @@ export default function Settings() {
                   </button>
                   {isTeamExpanded && (
                     <div className="pl-4 mt-1 space-y-1">
-                      {/* Metrics Section - First */}
+                      {/* Metrics Section */}
                       <div>
                         <button
                           onClick={() => {
-                            // Only expand if currently collapsed
                             if (!isMetricsExpanded) {
                               setIsMetricsExpanded(true)
                             }
-                            // Always activate the section when clicked
                             setActiveMainSection('team')
                             setActiveTeamSection('metrics')
                             setIsTeamMembersExpanded(false)
-                            setIsAutomationsExpanded(false)
                             window.location.hash = 'team-metrics-add-metrics'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -291,51 +407,16 @@ export default function Settings() {
                           )}
                         </button>
                       </div>
-                      {/* Automations Section */}
+                      {/* Team Members Section */}
                       <div>
                         <button
                           onClick={() => {
-                            // Only expand if currently collapsed
-                            if (!isAutomationsExpanded) {
-                              setIsAutomationsExpanded(true)
-                            }
-                            // Always activate the section when clicked
-                            setActiveMainSection('team')
-                            setActiveTeamSection('automations')
-                            setIsTeamMembersExpanded(false)
-                            setIsMetricsExpanded(false)
-                            window.location.hash = 'team-automations'
-                          }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                            activeMainSection === 'team' && activeTeamSection === 'automations'
-                              ? 'text-gray-900 bg-gray-100'
-                              : 'text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Zap className="h-4 w-4" />
-                            <span>Automations</span>
-                          </div>
-                          {isAutomationsExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                      {/* Team Members Section (renamed from Option Management) */}
-                      <div>
-                        <button
-                          onClick={() => {
-                            // Only expand if currently collapsed
                             if (!isTeamMembersExpanded) {
                               setIsTeamMembersExpanded(true)
                             }
-                            // Always activate the section when clicked
                             setActiveMainSection('team')
                             setActiveTeamSection('team-members')
                             setIsMetricsExpanded(false)
-                            setIsAutomationsExpanded(false)
                             window.location.hash = 'team-team-members-types'
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -508,168 +589,315 @@ export default function Settings() {
 
           {/* Main Content Area */}
           <main className="flex-1 min-w-0">
-            {/* Global Settings Section Content */}
-            {activeMainSection === 'global-settings' && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Global Settings</h2>
-                <p className="text-gray-600">Global settings will be available here.</p>
+            <div className="p-6">
+              {/* Global Settings Section Content */}
+              {activeMainSection === 'global-settings' && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Global Settings</h2>
+                  <p className="text-gray-600">Global settings will be available here.</p>
+                </div>
+              )}
+
+              {/* Automations Section Content - PRESERVED EXACTLY AS IS */}
+              {activeMainSection === 'automations' && activeAutomationSubsection === 'google' && (
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">Google Automation</h2>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Connect Google to sync your calendars, emails, and automation workflows.
+                  </p>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-semibold text-lg"
+                          style={{ background: 'linear-gradient(180deg, #FF83AD 0%, #EA1059 100%)' }}
+                        >
+                          G
+                        </div>
+                        <div>
+                          <p className="text-base font-semibold text-gray-900">Google Automation</p>
+                          <p className="text-sm text-gray-600">Calendar + Gmail + Drive workflows</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-gray-600 bg-white border border-gray-300 px-3 py-1 rounded-full">
+                          Not connected
+                        </span>
+                  <button
+                          onClick={handleConnectGoogle}
+                          className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
+                          style={{ backgroundColor: PINK_COLOR }}
+                        >
+                          Connect Google
+                  </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeMainSection === 'automations' && activeAutomationSubsection === 'slack' && (
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">Slack Integration</h2>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Get real-time alerts and updates in your Slack workspace.
+                  </p>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-semibold text-lg bg-[#611F69]">
+                          S
+                        </div>
+                        <div>
+                          <p className="text-base font-semibold text-gray-900">Slack Integration</p>
+                          <p className="text-sm text-gray-600">Get team alerts in your channels</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-gray-600 bg-white border border-gray-300 px-3 py-1 rounded-full">
+                          Not connected
+                        </span>
+                  <button
+                          onClick={handleConnectSlack}
+                          className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
+                          style={{ backgroundColor: PINK_COLOR }}
+                        >
+                          Connect Slack
+                  </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeMainSection === 'automations' && activeAutomationSubsection === 'jobber' && (
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">Jobber Integration</h2>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Connect Jobber to sync clients, quotes, jobs, and more.
+                  </p>
+                  
+                  {error && (
+                    <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+                      {error}
               </div>
             )}
 
-            {/* Team Section Content */}
-            {activeMainSection === 'team' && (
-              <>
-                {/* Team Members - Horizontal Navbar for Subsections */}
-                {activeTeamSection === 'team-members' && isTeamMembersExpanded && (
-                  <div className="mb-6 border-b border-gray-200">
-                    <nav className="flex space-x-8" aria-label="Team Members Tabs">
-                      <button
-                        onClick={() => {
-                          setActiveSubsection('types')
-                          window.location.hash = 'team-team-members-types'
-                        }}
-                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                          activeSubsection === 'types'
-                            ? 'border-[#E91E63] text-[#E91E63]'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        Team Member Types
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveSubsection('statuses')
-                          window.location.hash = 'team-team-members-statuses'
-                        }}
-                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                          activeSubsection === 'statuses'
-                            ? 'border-[#E91E63] text-[#E91E63]'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        Status Types
-                      </button>
-                    </nav>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-semibold text-lg bg-[#0F172A]">
+                          J
+                        </div>
+                        <div>
+                          <p className="text-base font-semibold text-gray-900">Jobber Integration</p>
+                          <p className="text-sm text-gray-600">Sync clients, quotes, jobs, and webhooks</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {isJobberConnected && (
+                          <span className="text-xs font-medium text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                            Connected
+                          </span>
+                        )}
+                        <button
+                          onClick={handleConnectJobber}
+                          disabled={isConnecting || isJobberConnected || isCheckingConnection}
+                          className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                          style={{
+                            backgroundColor: isJobberConnected ? '#10B981' : PINK_COLOR,
+                            cursor: isJobberConnected ? 'default' : 'pointer',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isJobberConnected && !isConnecting) {
+                              e.currentTarget.style.backgroundColor = PINK_DARK
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isJobberConnected && !isConnecting) {
+                              e.currentTarget.style.backgroundColor = PINK_COLOR
+                            }
+                          }}
+                        >
+                          {isCheckingConnection
+                            ? 'Checking connection...'
+                            : isConnecting
+                            ? 'Connecting...'
+                            : isJobberConnected
+                            ? 'Jobber Account Connected'
+                            : 'Connect Jobber'}
+                        </button>
+
+                        {isJobberConnected && (
+                          <button
+                            onClick={handleDisconnectJobber}
+                            disabled={isConnecting || isCheckingConnection}
+                            className="px-4 py-2.5 text-sm font-semibold rounded-xl border border-gray-300 text-gray-900 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Disconnect
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {isJobberConnected && (
+                      <p className="mt-4 text-sm text-gray-600">
+                        Your Jobber account is connected. Webhooks are automatically registered and active.
+                      </p>
+                    )}
                   </div>
-                )}
-                {/* Render Team content based on active section */}
-                {activeTeamSection === 'team-members' && (
-                  <>
-                    {activeSubsection === 'types' && <TeamMemberTypesManager />}
-                    {activeSubsection === 'statuses' && <TeamMemberStatusesManager />}
-                  </>
-                )}
-                {activeTeamSection === 'metrics' && isMetricsExpanded && (
-                  <>
-                    {/* Metrics Tabs Navigation */}
+                </div>
+              )}
+
+              {/* Team Section Content */}
+              {activeMainSection === 'team' && (
+                <>
+                  {/* Team Members - Horizontal Navbar for Subsections */}
+                  {activeTeamSection === 'team-members' && isTeamMembersExpanded && (
                     <div className="mb-6 border-b border-gray-200">
-                      <nav className="flex space-x-8" aria-label="Metrics Tabs">
+                      <nav className="flex space-x-8" aria-label="Team Members Tabs">
                         <button
                           onClick={() => {
-                            setActiveMetricsTab('add-metrics')
-                            window.location.hash = 'team-metrics-add-metrics'
+                            setActiveOptionSubsection('types')
+                            window.location.hash = 'team-team-members-types'
                           }}
                           className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                            activeMetricsTab === 'add-metrics'
-                              ? 'border-[#E91E63] text-[#E91E63]'
+                            activeOptionSubsection === 'types'
+                              ? 'border-blue-500 text-blue-600'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                         >
-                          Add Metrics
+                          Team Member Types
                         </button>
                         <button
                           onClick={() => {
-                            setActiveMetricsTab('delivery-channel')
-                            window.location.hash = 'team-metrics-delivery-channel'
+                            setActiveOptionSubsection('statuses')
+                            window.location.hash = 'team-team-members-statuses'
                           }}
                           className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                            activeMetricsTab === 'delivery-channel'
-                              ? 'border-[#E91E63] text-[#E91E63]'
+                            activeOptionSubsection === 'statuses'
+                              ? 'border-blue-500 text-blue-600'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                         >
-                          Delivery Channel
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveMetricsTab('message-template')
-                            window.location.hash = 'team-metrics-message-template'
-                          }}
-                          className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                            activeMetricsTab === 'message-template'
-                              ? 'border-[#E91E63] text-[#E91E63]'
-                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          }`}
-                        >
-                          Configure Message Template
+                          Status Types
                         </button>
                       </nav>
                     </div>
-                    {/* Metrics Tab Content */}
-                    {activeMetricsTab === 'add-metrics' && (
-                      <CustomMetricDefinitionsManager />
-                    )}
-                    {activeMetricsTab === 'delivery-channel' && (
-                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Delivery Channel</h2>
-                        <p className="text-gray-600">Delivery channel settings will be available here.</p>
+                  )}
+                  {/* Render Team content based on active section */}
+                  {activeTeamSection === 'team-members' && (
+                    <>
+                      {activeOptionSubsection === 'types' && <TeamMemberTypesManager />}
+                      {activeOptionSubsection === 'statuses' && <TeamMemberStatusesManager />}
+                    </>
+                  )}
+                  {activeTeamSection === 'metrics' && isMetricsExpanded && (
+                    <>
+                      {/* Metrics Tabs Navigation */}
+                      <div className="mb-6 border-b border-gray-200">
+                        <nav className="flex space-x-8" aria-label="Metrics Tabs">
+                          <button
+                            onClick={() => {
+                              setActiveMetricsTab('add-metrics')
+                              window.location.hash = 'team-metrics-add-metrics'
+                            }}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                              activeMetricsTab === 'add-metrics'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                          >
+                            Add Metrics
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveMetricsTab('delivery-channel')
+                              window.location.hash = 'team-metrics-delivery-channel'
+                            }}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                              activeMetricsTab === 'delivery-channel'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                          >
+                            Delivery Channel
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveMetricsTab('message-template')
+                              window.location.hash = 'team-metrics-message-template'
+                            }}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                              activeMetricsTab === 'message-template'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                          >
+                            Configure Message Template
+                          </button>
+                        </nav>
                       </div>
-                    )}
-                    {activeMetricsTab === 'message-template' && (
-                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Configure Message Template</h2>
-                        <p className="text-gray-600">Message template configuration will be available here.</p>
-                      </div>
-                    )}
-                  </>
-                )}
-                {activeTeamSection === 'automations' && isAutomationsExpanded && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Automations</h2>
-                    <p className="text-gray-600">Automation settings will be available here.</p>
-                  </div>
-                )}
-              </>
-            )}
+                      {/* Metrics Tab Content */}
+                      {activeMetricsTab === 'add-metrics' && (
+                        <CustomMetricDefinitionsManager />
+                      )}
+                      {activeMetricsTab === 'delivery-channel' && (
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                          <h2 className="text-xl font-semibold text-gray-900 mb-4">Delivery Channel</h2>
+                          <p className="text-gray-600">Delivery channel settings will be available here.</p>
+                        </div>
+                      )}
+                      {activeMetricsTab === 'message-template' && (
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                          <h2 className="text-xl font-semibold text-gray-900 mb-4">Configure Message Template</h2>
+                          <p className="text-gray-600">Message template configuration will be available here.</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
 
-            {/* Service Section Content */}
-            {activeMainSection === 'service' && (
-              <>
-                {activeServiceSection === 'scheduling' && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Scheduling</h2>
-                    <p className="text-gray-600">Scheduling settings will be available here.</p>
-                  </div>
-                )}
-                {activeServiceSection === 'notifications' && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Notifications</h2>
-                    <p className="text-gray-600">Notification settings will be available here.</p>
-                  </div>
-                )}
-              </>
-            )}
+              {/* Service Section Content */}
+              {activeMainSection === 'service' && (
+                <>
+                  {activeServiceSection === 'scheduling' && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Scheduling</h2>
+                      <p className="text-gray-600">Scheduling settings will be available here.</p>
+                    </div>
+                  )}
+                  {activeServiceSection === 'notifications' && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Notifications</h2>
+                      <p className="text-gray-600">Notification settings will be available here.</p>
+                    </div>
+                  )}
+                </>
+              )}
 
-            {/* Knowledge Base Section Content */}
-            {activeMainSection === 'knowledge-base' && (
-              <>
-                {activeKnowledgeBaseSection === 'fallback-response' && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Fallback Response</h2>
-                    <p className="text-gray-600">Fallback response settings will be available here.</p>
-                  </div>
-                )}
-                {activeKnowledgeBaseSection === 'response-format' && (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Response Format</h2>
-                    <p className="text-gray-600">Response format settings will be available here.</p>
-                  </div>
-                )}
-              </>
-            )}
+              {/* Knowledge Base Section Content */}
+              {activeMainSection === 'knowledge-base' && (
+                <>
+                  {activeKnowledgeBaseSection === 'fallback-response' && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Fallback Response</h2>
+                      <p className="text-gray-600">Fallback response settings will be available here.</p>
+                    </div>
+                  )}
+                  {activeKnowledgeBaseSection === 'response-format' && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Response Format</h2>
+                      <p className="text-gray-600">Response format settings will be available here.</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </main>
         </div>
       </div>
-    </div>
+    </SidebarLayout>
   )
 }
