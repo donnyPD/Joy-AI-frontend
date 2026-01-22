@@ -2,16 +2,156 @@ import { useState, useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { getMe } from '../features/auth/authApi'
 import { getOAuthUrl, disconnectJobber } from '../features/jobber/jobberApi'
-import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3, Zap, Briefcase, BookOpen, Calendar, Bell, Info, FileText, Globe } from 'lucide-react'
+import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3, Zap, Briefcase, BookOpen, Calendar, Bell, Info, FileText, Globe, Save, MessageSquare } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import SidebarLayout from '../components/SidebarLayout'
 import TeamMemberTypesManager from '../components/TeamMemberTypesManager'
 import TeamMemberStatusesManager from '../components/TeamMemberStatusesManager'
 import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
+import { useNotificationMessage, useUpdateNotificationMessage } from '../features/settings/settingsApi'
 
 const PINK_COLOR = '#E91E63'
 const PINK_DARK = '#C2185B'
+
+const DEFAULT_NOTIFICATION_MESSAGE = `Hey Ziah, our cleaning tech <name> has just crossed the threshold for unpassed metrics. They recorded <metrics> during <month_year>.
+
+This summary covers all the metrics they have triggered:
+<ai_summary>
+
+*Please reach out to them to schedule a 1:1 call no later than <add 2 days hence, in weekday>.*`
+
+const AVAILABLE_VARIABLES = [
+  { placeholder: '<name>', description: 'Team member name' },
+  { placeholder: '<metrics>', description: 'Formatted metrics breakdown' },
+  { placeholder: '<month_year>', description: 'Current month and year' },
+  { placeholder: '<ai_summary>', description: 'AI-generated summary' },
+  { placeholder: '<add 2 days hence, in weekday>', description: 'Next business day' },
+  { placeholder: '<threshold>', description: 'Threshold value' },
+  { placeholder: '<incident_count>', description: 'Total incident count' },
+]
+
+function MessageTemplateEditor() {
+  const { data, isLoading } = useNotificationMessage()
+  const updateMutation = useUpdateNotificationMessage()
+  const [messageTemplate, setMessageTemplate] = useState<string>(DEFAULT_NOTIFICATION_MESSAGE)
+
+  useEffect(() => {
+    if (data?.value) {
+      setMessageTemplate(data.value)
+    }
+  }, [data])
+
+  const handleSave = () => {
+    updateMutation.mutate(messageTemplate)
+  }
+
+  const insertVariable = (variable: string) => {
+    const textarea = document.getElementById('message-template-textarea') as HTMLTextAreaElement
+    if (textarea) {
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const textBefore = messageTemplate.substring(0, start)
+      const textAfter = messageTemplate.substring(end)
+      setMessageTemplate(textBefore + variable + textAfter)
+      // Set cursor position after inserted variable
+      setTimeout(() => {
+        textarea.focus()
+        textarea.setSelectionRange(start + variable.length, start + variable.length)
+      }, 0)
+    } else {
+      setMessageTemplate(messageTemplate + variable)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="flex items-start gap-3 mb-6">
+        <div className="rounded-lg bg-purple-100 p-2">
+          <MessageSquare className="h-5 w-5 text-purple-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-1">Message Template</h2>
+          <p className="text-sm text-gray-600">Customize the notification message template</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="message-template-textarea" className="block text-sm font-medium text-gray-700">
+            Notification Message
+          </label>
+          <textarea
+            id="message-template-textarea"
+            rows={12}
+            className="w-full px-3 py-2 border border-gray-300 bg-white rounded-md text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={messageTemplate}
+            onChange={(e) => setMessageTemplate(e.target.value)}
+            placeholder={DEFAULT_NOTIFICATION_MESSAGE}
+          />
+        </div>
+
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <p className="text-sm font-medium text-gray-700 mb-3">Available Variables:</p>
+          <div className="flex flex-wrap gap-2">
+            {AVAILABLE_VARIABLES.map((variable) => (
+              <button
+                key={variable.placeholder}
+                type="button"
+                onClick={() => insertVariable(variable.placeholder)}
+                className="px-3 py-1.5 bg-white border border-gray-300 rounded-md text-xs font-mono text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors cursor-pointer"
+                title={variable.description}
+              >
+                {variable.placeholder}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={updateMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg font-medium hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            style={{ backgroundColor: PINK_COLOR }}
+            onMouseEnter={(e) => {
+              if (!updateMutation.isPending) {
+                e.currentTarget.style.backgroundColor = PINK_DARK
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!updateMutation.isPending) {
+                e.currentTarget.style.backgroundColor = PINK_COLOR
+              }
+            }}
+          >
+            {updateMutation.isPending ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                <span>Save Message Template</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 type IntegrationSubsection = 'google' | 'slack' | 'jobber'
 type OptionSubsection = 'types' | 'statuses'
@@ -849,10 +989,7 @@ export default function Settings() {
                         </div>
                       )}
                       {activeMetricsTab === 'message-template' && (
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                          <h2 className="text-xl font-semibold text-gray-900 mb-4">Configure Message Template</h2>
-                          <p className="text-gray-600">Message template configuration will be available here.</p>
-                        </div>
+                        <MessageTemplateEditor />
                       )}
                     </>
                   )}
