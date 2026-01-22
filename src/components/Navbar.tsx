@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
-import { Info } from 'lucide-react'
 
 const logo = '/logo.png' // Placeholder - update this path when logo is added
 
@@ -12,10 +11,10 @@ export default function Navbar() {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
   const subscriptionLabel = user?.subscription?.planKey
-    ? user.subscription.planKey.replace('-', ' ').toUpperCase()
-    : null
-  const subscriptionStatus = user?.subscription?.status
-    ? user.subscription.status.replace('_', ' ')
+    ? user.subscription.planKey
+        .split('-')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
     : null
 
   const handleSignOut = () => {
@@ -36,18 +35,9 @@ export default function Navbar() {
 
           <div className="flex items-center gap-2 relative">
             {user?.isSubscribed && subscriptionLabel && (
-              <div className="relative group">
-                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#FCE4EC] text-[#E91E63] border border-[#F3A6C9] cursor-pointer flex items-center gap-1">
-                  Plan Active
-                  <Info className="h-3.5 w-3.5 text-[#E91E63]" aria-hidden="true" />
-                </span>
-                <div className="absolute right-0 mt-2 hidden w-44 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-lg group-hover:block">
-                  <div className="font-semibold text-gray-900">{subscriptionLabel}</div>
-                  {subscriptionStatus && (
-                    <div className="mt-1 text-gray-600">Status: {subscriptionStatus}</div>
-                  )}
-                </div>
-              </div>
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#FCE4EC] text-[#E91E63] border border-[#F3A6C9]">
+                Plan Active : {subscriptionLabel}
+              </span>
             )}
             <button
               type="button"
