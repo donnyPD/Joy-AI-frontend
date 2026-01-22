@@ -29,6 +29,45 @@ const getFieldTypeIcon = (type: MetricField['type']) => {
   }
 }
 
+const compressImage = (file: File, maxWidth: number = 800, maxHeight: number = 800, quality: number = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = document.createElement('img')
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        
+        // Calculate new dimensions
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width
+            width = maxWidth
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height
+            height = maxHeight
+          }
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, width, height)
+        
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality)
+        resolve(compressedBase64)
+      }
+      img.onerror = reject
+      img.src = e.target?.result as string
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export default function CustomMetricEntryDialog({
   open,
   onClose,
@@ -97,11 +136,6 @@ export default function CustomMetricEntryDialog({
     customMetric.fields.forEach((field) => {
       descriptionData[field.id] = fieldValues[field.id] || ''
       descriptionData[field.name] = fieldValues[field.id] || '' // Also store by name for easier access
-      
-      // For image fields, also store the image URL if provided
-      if (field.type === 'image' && fieldValues[`${field.id}_url`]) {
-        descriptionData[`${field.id}_url`] = fieldValues[`${field.id}_url`]
-      }
     })
 
     createMutation.mutate(
@@ -240,39 +274,48 @@ export default function CustomMetricEntryDialog({
                         id={field.id}
                         type="file"
                         accept={field.type === 'image' ? 'image/*' : '*'}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0]
                           if (file) {
-                            // Store file name for now (could be enhanced to upload and store URL)
-                            handleFieldChange(field.id, file.name)
+                            if (field.type === 'image') {
+                              // Compress and convert image to base64
+                              try {
+                                const compressedBase64 = await compressImage(file)
+                                handleFieldChange(field.id, compressedBase64)
+                              } catch (error) {
+                                console.error('Error compressing image:', error)
+                                // Fallback to regular base64 if compression fails
+                                const reader = new FileReader()
+                                reader.onloadend = () => {
+                                  const result = reader.result as string
+                                  handleFieldChange(field.id, result)
+                                }
+                                reader.readAsDataURL(file)
+                              }
+                            } else {
+                              // For non-image uploads, store file name
+                              handleFieldChange(field.id, file.name)
+                            }
                           }
                         }}
                         className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                           hasError ? 'border-red-500' : 'border-gray-300'
                         }`}
                       />
-                      {value && (
+                      {value && field.type === 'image' && value.startsWith('data:image/') && (
+                        <div className="mt-2">
+                          <img 
+                            src={value} 
+                            alt="Preview" 
+                            className="max-w-full h-auto rounded-lg border border-gray-200 max-h-32 object-contain"
+                          />
+                          <p className="mt-1 text-sm text-gray-500">Image selected</p>
+                        </div>
+                      )}
+                      {value && field.type !== 'image' && (
                         <p className="mt-1 text-sm text-gray-500">Selected: {value}</p>
                       )}
                     </div>
-                    {field.type === 'image' && (
-                      <div>
-                        <label htmlFor={`${field.id}_url`} className="block text-sm font-medium text-gray-700 mb-1">
-                          Image URL (Optional)
-                        </label>
-                        <input
-                          id={`${field.id}_url`}
-                          type="url"
-                          value={fieldValues[`${field.id}_url`] || ''}
-                          onChange={(e) => handleFieldChange(`${field.id}_url`, e.target.value)}
-                          placeholder="https://example.com/image.jpg"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <p className="mt-1 text-xs text-gray-500">
-                          Enter a direct URL to the image. This will be used for display if provided.
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
 
