@@ -136,7 +136,7 @@ export default function Operations() {
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between text-xs text-gray-600">
-                    <span className="text-2xl font-bold text-gray-900">
+                    <span className="text-l font-normal text-gray-900">
                       {teamMembersCount}
                     </span>
                     <span className="text-gray-500">Total Members</span>
