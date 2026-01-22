@@ -3,6 +3,7 @@ import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
+import { useInventory } from '../features/inventory/inventoryApi'
 
 interface TeamMember {
   id: string
@@ -29,6 +30,10 @@ export default function Operations() {
   })
 
   const teamMembersCount = teamMembers?.length || 0
+
+  // Fetch inventory from API
+  const { data: inventory } = useInventory()
+  const inventoryCount = inventory?.length || 0
 
   return (
     <div className="min-h-screen bg-white">
@@ -89,13 +94,16 @@ export default function Operations() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Operations</h1>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Operations Automations</h1>
+          <p className="text-sm text-gray-600">Manage and monitor your operations automation workflows</p>
+        </div>
 
         {/* Operations Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Link to="/operations/team" className="block">
-            <div className="bg-white rounded-lg shadow-sm border border-blue-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
-              <div className="p-6">
+          <Link to="/operations/team" className="block h-full">
+            <div className="bg-white rounded-lg shadow-sm border border-blue-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group h-full flex flex-col">
+              <div className="p-6 flex-1 flex flex-col">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="p-3 bg-blue-100 rounded-lg">
                     <svg
@@ -125,7 +133,9 @@ export default function Operations() {
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    aria-label="View Team Management"
                   >
+                    <title>View Team Management</title>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -134,7 +144,7 @@ export default function Operations() {
                     />
                   </svg>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-auto pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between text-xs text-gray-600">
                     <span className="text-xl font-normal text-gray-900">
                       {teamMembersCount}
@@ -147,9 +157,9 @@ export default function Operations() {
           </Link>
 
           {/* Inventory Card */}
-          <Link to="/operations/inventory" className="block">
-            <div className="bg-white rounded-lg shadow-sm border border-green-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group">
-              <div className="p-6">
+          <Link to="/operations/inventory" className="block h-full">
+            <div className="bg-white rounded-lg shadow-sm border border-green-200 hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer group h-full flex flex-col">
+              <div className="p-6 flex-1 flex flex-col">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="p-3 bg-green-100 rounded-lg">
                     <svg
@@ -179,7 +189,9 @@ export default function Operations() {
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    aria-label="View Inventory"
                   >
+                    <title>View Inventory</title>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -187,6 +199,14 @@ export default function Operations() {
                       d="M9 5l7 7-7 7"
                     />
                   </svg>
+                </div>
+                <div className="mt-auto pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between text-xs text-gray-600">
+                    <span className="text-xl font-normal text-gray-900">
+                      {inventoryCount}
+                    </span>
+                    <span className="text-gray-500">Total Items</span>
+                  </div>
                 </div>
               </div>
             </div>
