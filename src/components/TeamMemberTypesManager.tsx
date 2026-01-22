@@ -18,6 +18,7 @@ export default function TeamMemberTypesManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingType, setEditingType] = useState<TeamMemberType | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const handleCreate = () => {
     setEditingType(null)
@@ -31,12 +32,21 @@ export default function TeamMemberTypesManager() {
 
   const handleDelete = (id: string) => {
     setDeleteConfirmId(id)
+    setDeleteError(null)
   }
 
   const confirmDelete = () => {
     if (deleteConfirmId) {
-      deleteMutation.mutate(deleteConfirmId)
-      setDeleteConfirmId(null)
+      deleteMutation.mutate(deleteConfirmId, {
+        onSuccess: () => {
+          setDeleteConfirmId(null)
+          setDeleteError(null)
+        },
+        onError: (error: any) => {
+          const errorMessage = error.response?.data?.message || error.message || 'Failed to delete team member type'
+          setDeleteError(errorMessage)
+        },
+      })
     }
   }
 
@@ -48,6 +58,9 @@ export default function TeamMemberTypesManager() {
           onSuccess: () => {
             setIsDialogOpen(false)
             setEditingType(null)
+          },
+          onError: () => {
+            // Error is already handled by toast in the hook
           },
         }
       )
@@ -206,24 +219,35 @@ export default function TeamMemberTypesManager() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Type</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete this type? This action cannot be undone.
-              </p>
+              {deleteError ? (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-6">
+                  {deleteError}
+                </div>
+              ) : (
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete this type? This action cannot be undone.
+                </p>
+              )}
               <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => setDeleteConfirmId(null)}
+                  onClick={() => {
+                    setDeleteConfirmId(null)
+                    setDeleteError(null)
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
                   disabled={deleteMutation.isPending}
                 >
-                  Cancel
+                  {deleteError ? 'Close' : 'Cancel'}
                 </button>
-                <button
-                  onClick={confirmDelete}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                  disabled={deleteMutation.isPending}
-                >
-                  {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-                </button>
+                {!deleteError && (
+                  <button
+                    onClick={confirmDelete}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

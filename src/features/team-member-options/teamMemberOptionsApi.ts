@@ -76,6 +76,7 @@ export function useUpdateTeamMemberType() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/team-member-types'] })
+      queryClient.invalidateQueries({ queryKey: ['/team-members'] })
       toast.success('Team member type updated successfully')
     },
     onError: (error: any) => {
@@ -140,6 +141,7 @@ export function useUpdateTeamMemberStatus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/team-member-statuses'] })
+      queryClient.invalidateQueries({ queryKey: ['/team-members'] })
       toast.success('Team member status updated successfully')
     },
     onError: (error: any) => {

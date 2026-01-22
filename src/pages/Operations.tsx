@@ -31,9 +31,9 @@ export default function Operations() {
   const teamMembersCount = teamMembers?.length || 0
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-8">
@@ -136,7 +136,7 @@ export default function Operations() {
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between text-xs text-gray-600">
-                    <span className="text-2xl font-bold text-gray-900">
+                    <span className="text-xl font-normal text-gray-900">
                       {teamMembersCount}
                     </span>
                     <span className="text-gray-500">Total Members</span>
