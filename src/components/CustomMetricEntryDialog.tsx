@@ -205,7 +205,7 @@ export default function CustomMetricEntryDialog({
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] ${
                   errors.date ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
@@ -233,7 +233,7 @@ export default function CustomMetricEntryDialog({
                     type="date"
                     value={value}
                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] ${
                       hasError ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />
@@ -245,7 +245,7 @@ export default function CustomMetricEntryDialog({
                     value={value}
                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
                     rows={3}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] ${
                       hasError ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder={`Enter ${field.name.toLowerCase()}...`}
@@ -260,7 +260,7 @@ export default function CustomMetricEntryDialog({
                     min="0"
                     value={value}
                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] ${
                       hasError ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder={field.type === 'dollarValue' ? '0.00' : '0'}
@@ -298,7 +298,7 @@ export default function CustomMetricEntryDialog({
                             }
                           }
                         }}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] ${
                           hasError ? 'border-red-500' : 'border-gray-300'
                         }`}
                       />
@@ -341,7 +341,7 @@ export default function CustomMetricEntryDialog({
             <button
               type="submit"
               disabled={createMutation.isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#E91E63] rounded-md hover:bg-[#C2185B] disabled:opacity-50"
             >
               {createMutation.isPending ? 'Adding...' : 'Add Entry'}
             </button>

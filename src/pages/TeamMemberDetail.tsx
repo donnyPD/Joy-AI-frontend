@@ -1582,7 +1582,7 @@ export default function TeamMemberDetail() {
                                             <img 
                                               src={imageSrc} 
                                               alt={field.name}
-                                              className="max-w-full h-auto rounded-lg border border-gray-200 max-h-64 object-contain"
+                                              className="w-32 h-32 rounded-lg border border-gray-200 object-cover"
                                               onError={(e) => {
                                                 // Fallback to text if image fails to load
                                                 const target = e.target as HTMLImageElement
@@ -1848,7 +1848,7 @@ export default function TeamMemberDetail() {
                         type="date"
                         value={editEntryDate}
                         onChange={(e) => setEditEntryDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
                       />
                     </div>
                   )}

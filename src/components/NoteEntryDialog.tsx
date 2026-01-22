@@ -127,7 +127,7 @@ export default function NoteEntryDialog({
             <button
               type="submit"
               disabled={createMutation.isPending || updateMutation.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:opacity-50"
             >
               {isEditMode
                 ? updateMutation.isPending

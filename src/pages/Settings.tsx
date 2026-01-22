@@ -2,34 +2,176 @@ import { useState, useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { getMe } from '../features/auth/authApi'
 import { getOAuthUrl, disconnectJobber } from '../features/jobber/jobberApi'
-import { Settings as SettingsIcon, ChevronRight, ChevronDown } from 'lucide-react'
+import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3, Zap, Briefcase, BookOpen, Calendar, Bell, Info, FileText, Globe } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import SidebarLayout from '../components/SidebarLayout'
 import TeamMemberTypesManager from '../components/TeamMemberTypesManager'
 import TeamMemberStatusesManager from '../components/TeamMemberStatusesManager'
+import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
 
 const PINK_COLOR = '#E91E63'
 const PINK_DARK = '#C2185B'
 
 type IntegrationSubsection = 'google' | 'slack' | 'jobber'
 type OptionSubsection = 'types' | 'statuses'
-type MainSection = 'automations' | 'option-management'
+type MainSection = 'global-settings' | 'automations' | 'team' | 'service' | 'knowledge-base'
+type TeamSection = 'metrics' | 'team-members'
+type ServiceSection = 'scheduling' | 'notifications'
+type KnowledgeBaseSection = 'fallback-response' | 'response-format'
+type MetricsTab = 'add-metrics' | 'delivery-channel' | 'message-template'
 
 export default function Settings() {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
   const { isLoading: isConnecting } = useAppSelector((state) => state.jobber || { isLoading: false })
+  const [searchParams] = useSearchParams()
   
-  const [mainSection, setMainSection] = useState<MainSection>('automations')
-  const [activeSubsection, setActiveSubsection] = useState<IntegrationSubsection>('jobber')
+  const [activeMainSection, setActiveMainSection] = useState<MainSection>('global-settings')
+  const [activeAutomationSubsection, setActiveAutomationSubsection] = useState<IntegrationSubsection>('jobber')
+  const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('team-members')
+  const [activeServiceSection, setActiveServiceSection] = useState<ServiceSection>('scheduling')
+  const [activeKnowledgeBaseSection, setActiveKnowledgeBaseSection] = useState<KnowledgeBaseSection>('fallback-response')
   const [activeOptionSubsection, setActiveOptionSubsection] = useState<OptionSubsection>('types')
-  const [isAutomationsExpanded, setIsAutomationsExpanded] = useState(true)
-  const [isOptionManagementExpanded, setIsOptionManagementExpanded] = useState(true)
+  const [activeMetricsTab, setActiveMetricsTab] = useState<MetricsTab>('add-metrics')
+  
+  const [isAutomationsExpanded, setIsAutomationsExpanded] = useState(false)
+  const [isTeamExpanded, setIsTeamExpanded] = useState(false)
+  const [isServiceExpanded, setIsServiceExpanded] = useState(false)
+  const [isKnowledgeBaseExpanded, setIsKnowledgeBaseExpanded] = useState(false)
+  const [isMetricsExpanded, setIsMetricsExpanded] = useState(false)
+  const [isTeamMembersExpanded, setIsTeamMembersExpanded] = useState(false)
+  
   const [error, setError] = useState('')
   const [isCheckingConnection, setIsCheckingConnection] = useState(false)
 
   const isJobberConnected = !!user?.jobberAccessToken
 
+  // Helper function to parse hash and update state
+  const parseHashAndUpdateState = (hash: string) => {
+    // Remove the # symbol
+    const hashValue = hash.replace('#', '')
+    if (!hashValue) {
+      // Default to global-settings if no hash
+      setActiveMainSection('global-settings')
+      return
+    }
+
+    const parts = hashValue.split('-')
+    
+    // Handle global-settings
+    if (hashValue === 'global-settings') {
+      setActiveMainSection('global-settings')
+      return
+    }
+
+    // Handle automations sections
+    if (parts[0] === 'automations') {
+      setActiveMainSection('automations')
+      setIsAutomationsExpanded(true)
+      
+      if (parts[1] === 'google') {
+        setActiveAutomationSubsection('google')
+      } else if (parts[1] === 'slack') {
+        setActiveAutomationSubsection('slack')
+      } else if (parts[1] === 'jobber') {
+        setActiveAutomationSubsection('jobber')
+      }
+      return
+    }
+
+    // Handle team sections
+    if (parts[0] === 'team') {
+      setActiveMainSection('team')
+      setIsTeamExpanded(true)
+      
+      if (parts[1] === 'metrics') {
+        setActiveTeamSection('metrics')
+        setIsMetricsExpanded(true)
+        setIsTeamMembersExpanded(false)
+        
+        // Handle metrics tabs
+        if (parts[2] === 'add' && parts[3] === 'metrics') {
+          setActiveMetricsTab('add-metrics')
+        } else if (parts[2] === 'delivery' && parts[3] === 'channel') {
+          setActiveMetricsTab('delivery-channel')
+        } else if (parts[2] === 'message' && parts[3] === 'template') {
+          setActiveMetricsTab('message-template')
+        }
+      } else if (parts[1] === 'team' && parts[2] === 'members') {
+        setActiveTeamSection('team-members')
+        setIsTeamMembersExpanded(true)
+        setIsMetricsExpanded(false)
+        
+        // Handle team members subsections
+        if (parts[3] === 'types') {
+          setActiveOptionSubsection('types')
+        } else if (parts[3] === 'statuses') {
+          setActiveOptionSubsection('statuses')
+        }
+      }
+      return
+    }
+
+    // Handle service sections
+    if (parts[0] === 'service') {
+      setActiveMainSection('service')
+      setIsServiceExpanded(true)
+      
+      if (parts[1] === 'scheduling') {
+        setActiveServiceSection('scheduling')
+      } else if (parts[1] === 'notifications') {
+        setActiveServiceSection('notifications')
+      }
+      return
+    }
+
+    // Handle knowledge-base sections
+    if (parts[0] === 'knowledge' && parts[1] === 'base') {
+      setActiveMainSection('knowledge-base')
+      setIsKnowledgeBaseExpanded(true)
+      
+      if (parts[2] === 'fallback' && parts[3] === 'response') {
+        setActiveKnowledgeBaseSection('fallback-response')
+      } else if (parts[2] === 'response' && parts[3] === 'format') {
+        setActiveKnowledgeBaseSection('response-format')
+      }
+      return
+    }
+  }
+
+  // Handle URL hash parameter for navigation
+  useEffect(() => {
+    // Check for hash on mount
+    const hash = window.location.hash
+    if (hash) {
+      parseHashAndUpdateState(hash)
+    } else {
+      // Default to global-settings if no hash
+      setActiveMainSection('global-settings')
+    }
+
+    // Listen for hash changes
+    const handleHashChange = () => {
+      const newHash = window.location.hash
+      if (newHash) {
+        parseHashAndUpdateState(newHash)
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  // Handle URL query parameter to auto-select Metrics section (backward compatibility)
+  useEffect(() => {
+    const section = searchParams.get('section')
+    if (section === 'metrics') {
+      window.location.hash = 'team-metrics'
+    }
+  }, [searchParams])
+
+  // Preserve existing Jobber connection useEffect
   useEffect(() => {
     if (user) {
       setIsCheckingConnection(false)
@@ -114,18 +256,46 @@ export default function Settings() {
               </div>
 
               <nav className="space-y-1">
+                {/* Global Settings Section */}
+                <div>
+                  <button
+                    onClick={() => {
+                      setActiveMainSection('global-settings')
+                      window.location.hash = 'global-settings'
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeMainSection === 'global-settings'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      <span>Global Settings</span>
+                    </div>
+                  </button>
+                </div>
+
                 {/* Automations Section */}
                 <div>
                   <button
                     onClick={() => {
                       setIsAutomationsExpanded(!isAutomationsExpanded)
                       if (!isAutomationsExpanded) {
-                        setMainSection('automations')
+                        setActiveMainSection('automations')
+                        window.location.hash = 'automations-jobber'
                       }
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-900 bg-blue-50 hover:bg-blue-100 transition-colors"
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeMainSection === 'automations'
+                        ? 'text-gray-900 bg-blue-50 hover:bg-blue-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                   >
-                    <span>Automations</span>
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      <span>Automations</span>
+                    </div>
                     {isAutomationsExpanded ? (
                       <ChevronDown className="h-4 w-4" />
                     ) : (
@@ -136,11 +306,12 @@ export default function Settings() {
                     <div className="pl-4 mt-1 space-y-1">
                       <button
                         onClick={() => {
-                          setMainSection('automations')
-                          setActiveSubsection('google')
+                          setActiveMainSection('automations')
+                          setActiveAutomationSubsection('google')
+                          window.location.hash = 'automations-google'
                         }}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          mainSection === 'automations' && activeSubsection === 'google'
+                          activeMainSection === 'automations' && activeAutomationSubsection === 'google'
                             ? 'bg-blue-100 text-blue-600'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }`}
@@ -149,11 +320,12 @@ export default function Settings() {
                       </button>
                       <button
                         onClick={() => {
-                          setMainSection('automations')
-                          setActiveSubsection('slack')
+                          setActiveMainSection('automations')
+                          setActiveAutomationSubsection('slack')
+                          window.location.hash = 'automations-slack'
                         }}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          mainSection === 'automations' && activeSubsection === 'slack'
+                          activeMainSection === 'automations' && activeAutomationSubsection === 'slack'
                             ? 'bg-blue-100 text-blue-600'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }`}
@@ -162,11 +334,12 @@ export default function Settings() {
                       </button>
                       <button
                         onClick={() => {
-                          setMainSection('automations')
-                          setActiveSubsection('jobber')
+                          setActiveMainSection('automations')
+                          setActiveAutomationSubsection('jobber')
+                          window.location.hash = 'automations-jobber'
                         }}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          mainSection === 'automations' && activeSubsection === 'jobber'
+                          activeMainSection === 'automations' && activeAutomationSubsection === 'jobber'
                             ? 'bg-blue-100 text-blue-600'
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }`}
@@ -177,52 +350,236 @@ export default function Settings() {
                   )}
                 </div>
 
-                {/* Option Management Section */}
+                {/* Team Section */}
                 <div>
                   <button
                     onClick={() => {
-                      setIsOptionManagementExpanded(!isOptionManagementExpanded)
-                      if (!isOptionManagementExpanded) {
-                        setMainSection('option-management')
+                      setIsTeamExpanded(!isTeamExpanded)
+                      if (!isTeamExpanded) {
+                        setActiveMainSection('team')
+                        window.location.hash = 'team-team-members-types'
                       }
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-900 bg-blue-50 hover:bg-blue-100 transition-colors"
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeMainSection === 'team'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                   >
-                    <span>Option Management</span>
-                    {isOptionManagementExpanded ? (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      <span>Team</span>
+                    </div>
+                    {isTeamExpanded ? (
                       <ChevronDown className="h-4 w-4" />
                     ) : (
                       <ChevronRight className="h-4 w-4" />
                     )}
                   </button>
-                  {isOptionManagementExpanded && (
+                  {isTeamExpanded && (
                     <div className="pl-4 mt-1 space-y-1">
-                      <button
-                        onClick={() => {
-                          setMainSection('option-management')
-                          setActiveOptionSubsection('types')
-                        }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          mainSection === 'option-management' && activeOptionSubsection === 'types'
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                        }`}
-                      >
-                        Team Member Types
-                      </button>
-                      <button
-                        onClick={() => {
-                          setMainSection('option-management')
-                          setActiveOptionSubsection('statuses')
-                        }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          mainSection === 'option-management' && activeOptionSubsection === 'statuses'
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                        }`}
-                      >
-                        Status Types
-                      </button>
+                      {/* Metrics Section */}
+                      <div>
+                        <button
+                          onClick={() => {
+                            if (!isMetricsExpanded) {
+                              setIsMetricsExpanded(true)
+                            }
+                            setActiveMainSection('team')
+                            setActiveTeamSection('metrics')
+                            setIsTeamMembersExpanded(false)
+                            window.location.hash = 'team-metrics-add-metrics'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'team' && activeTeamSection === 'metrics'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" />
+                            <span>Metrics</span>
+                          </div>
+                          {isMetricsExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {/* Team Members Section */}
+                      <div>
+                        <button
+                          onClick={() => {
+                            if (!isTeamMembersExpanded) {
+                              setIsTeamMembersExpanded(true)
+                            }
+                            setActiveMainSection('team')
+                            setActiveTeamSection('team-members')
+                            setIsMetricsExpanded(false)
+                            window.location.hash = 'team-team-members-types'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'team' && activeTeamSection === 'team-members'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Sliders className="h-4 w-4" />
+                            <span>Team Members</span>
+                          </div>
+                          {isTeamMembersExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Service Section */}
+                <div>
+                  <button
+                    onClick={() => {
+                      setIsServiceExpanded(!isServiceExpanded)
+                      if (!isServiceExpanded) {
+                        setActiveMainSection('service')
+                        window.location.hash = 'service-scheduling'
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeMainSection === 'service'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />
+                      <span>Service</span>
+                    </div>
+                    {isServiceExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  {isServiceExpanded && (
+                    <div className="pl-4 mt-1 space-y-1">
+                      {/* Scheduling Section */}
+                      <div>
+                        <button
+                          onClick={() => {
+                            setActiveMainSection('service')
+                            setActiveServiceSection('scheduling')
+                            window.location.hash = 'service-scheduling'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'service' && activeServiceSection === 'scheduling'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            <span>Scheduling</span>
+                          </div>
+                        </button>
+                      </div>
+                      {/* Notifications Section */}
+                      <div>
+                        <button
+                          onClick={() => {
+                            setActiveMainSection('service')
+                            setActiveServiceSection('notifications')
+                            window.location.hash = 'service-notifications'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'service' && activeServiceSection === 'notifications'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Bell className="h-4 w-4" />
+                            <span>Notifications</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Knowledge Base Section */}
+                <div>
+                  <button
+                    onClick={() => {
+                      setIsKnowledgeBaseExpanded(!isKnowledgeBaseExpanded)
+                      if (!isKnowledgeBaseExpanded) {
+                        setActiveMainSection('knowledge-base')
+                        window.location.hash = 'knowledge-base-fallback-response'
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeMainSection === 'knowledge-base'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      <span>Knowledge Base</span>
+                    </div>
+                    {isKnowledgeBaseExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  {isKnowledgeBaseExpanded && (
+                    <div className="pl-4 mt-1 space-y-1">
+                      {/* Fallback Response Section */}
+                      <div>
+                        <button
+                          onClick={() => {
+                            setActiveMainSection('knowledge-base')
+                            setActiveKnowledgeBaseSection('fallback-response')
+                            window.location.hash = 'knowledge-base-fallback-response'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'knowledge-base' && activeKnowledgeBaseSection === 'fallback-response'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Info className="h-4 w-4" />
+                            <span>Fallback Response</span>
+                          </div>
+                        </button>
+                      </div>
+                      {/* Response Format Section */}
+                      <div>
+                        <button
+                          onClick={() => {
+                            setActiveMainSection('knowledge-base')
+                            setActiveKnowledgeBaseSection('response-format')
+                            window.location.hash = 'knowledge-base-response-format'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'knowledge-base' && activeKnowledgeBaseSection === 'response-format'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            <span>Response Format</span>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -233,7 +590,16 @@ export default function Settings() {
           {/* Main Content Area */}
           <main className="flex-1 min-w-0">
             <div className="p-6">
-              {mainSection === 'automations' && activeSubsection === 'google' && (
+              {/* Global Settings Section Content */}
+              {activeMainSection === 'global-settings' && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Global Settings</h2>
+                  <p className="text-gray-600">Global settings will be available here.</p>
+                </div>
+              )}
+
+              {/* Automations Section Content - PRESERVED EXACTLY AS IS */}
+              {activeMainSection === 'automations' && activeAutomationSubsection === 'google' && (
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900 mb-2">Google Automation</h2>
                   <p className="text-sm text-gray-600 mb-6">
@@ -257,20 +623,20 @@ export default function Settings() {
                         <span className="text-xs font-medium text-gray-600 bg-white border border-gray-300 px-3 py-1 rounded-full">
                           Not connected
                         </span>
-                        <button
+                  <button
                           onClick={handleConnectGoogle}
                           className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
                           style={{ backgroundColor: PINK_COLOR }}
                         >
                           Connect Google
-                        </button>
+                  </button>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {mainSection === 'automations' && activeSubsection === 'slack' && (
+              {activeMainSection === 'automations' && activeAutomationSubsection === 'slack' && (
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900 mb-2">Slack Integration</h2>
                   <p className="text-sm text-gray-600 mb-6">
@@ -291,20 +657,20 @@ export default function Settings() {
                         <span className="text-xs font-medium text-gray-600 bg-white border border-gray-300 px-3 py-1 rounded-full">
                           Not connected
                         </span>
-                        <button
+                  <button
                           onClick={handleConnectSlack}
                           className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
                           style={{ backgroundColor: PINK_COLOR }}
                         >
                           Connect Slack
-                        </button>
+                  </button>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {mainSection === 'automations' && activeSubsection === 'jobber' && (
+              {activeMainSection === 'automations' && activeAutomationSubsection === 'jobber' && (
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900 mb-2">Jobber Integration</h2>
                   <p className="text-sm text-gray-600 mb-6">
@@ -314,8 +680,8 @@ export default function Settings() {
                   {error && (
                     <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
                       {error}
-                    </div>
-                  )}
+              </div>
+            )}
 
                   <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
                     <div className="flex items-center justify-between flex-wrap gap-4">
@@ -383,8 +749,151 @@ export default function Settings() {
                 </div>
               )}
 
-              {mainSection === 'option-management' && activeOptionSubsection === 'types' && <TeamMemberTypesManager />}
-              {mainSection === 'option-management' && activeOptionSubsection === 'statuses' && <TeamMemberStatusesManager />}
+              {/* Team Section Content */}
+              {activeMainSection === 'team' && (
+                <>
+                  {/* Team Members - Horizontal Navbar for Subsections */}
+                  {activeTeamSection === 'team-members' && isTeamMembersExpanded && (
+                    <div className="mb-6 border-b border-gray-200">
+                      <nav className="flex space-x-8" aria-label="Team Members Tabs">
+                        <button
+                          onClick={() => {
+                            setActiveOptionSubsection('types')
+                            window.location.hash = 'team-team-members-types'
+                          }}
+                          className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeOptionSubsection === 'types'
+                              ? 'border-blue-500 text-blue-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          Team Member Types
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveOptionSubsection('statuses')
+                            window.location.hash = 'team-team-members-statuses'
+                          }}
+                          className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeOptionSubsection === 'statuses'
+                              ? 'border-blue-500 text-blue-600'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          Status Types
+                        </button>
+                      </nav>
+                    </div>
+                  )}
+                  {/* Render Team content based on active section */}
+                  {activeTeamSection === 'team-members' && (
+                    <>
+                      {activeOptionSubsection === 'types' && <TeamMemberTypesManager />}
+                      {activeOptionSubsection === 'statuses' && <TeamMemberStatusesManager />}
+                    </>
+                  )}
+                  {activeTeamSection === 'metrics' && isMetricsExpanded && (
+                    <>
+                      {/* Metrics Tabs Navigation */}
+                      <div className="mb-6 border-b border-gray-200">
+                        <nav className="flex space-x-8" aria-label="Metrics Tabs">
+                          <button
+                            onClick={() => {
+                              setActiveMetricsTab('add-metrics')
+                              window.location.hash = 'team-metrics-add-metrics'
+                            }}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                              activeMetricsTab === 'add-metrics'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                          >
+                            Add Metrics
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveMetricsTab('delivery-channel')
+                              window.location.hash = 'team-metrics-delivery-channel'
+                            }}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                              activeMetricsTab === 'delivery-channel'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                          >
+                            Delivery Channel
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveMetricsTab('message-template')
+                              window.location.hash = 'team-metrics-message-template'
+                            }}
+                            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                              activeMetricsTab === 'message-template'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                          >
+                            Configure Message Template
+                          </button>
+                        </nav>
+                      </div>
+                      {/* Metrics Tab Content */}
+                      {activeMetricsTab === 'add-metrics' && (
+                        <CustomMetricDefinitionsManager />
+                      )}
+                      {activeMetricsTab === 'delivery-channel' && (
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                          <h2 className="text-xl font-semibold text-gray-900 mb-4">Delivery Channel</h2>
+                          <p className="text-gray-600">Delivery channel settings will be available here.</p>
+                        </div>
+                      )}
+                      {activeMetricsTab === 'message-template' && (
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                          <h2 className="text-xl font-semibold text-gray-900 mb-4">Configure Message Template</h2>
+                          <p className="text-gray-600">Message template configuration will be available here.</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Service Section Content */}
+              {activeMainSection === 'service' && (
+                <>
+                  {activeServiceSection === 'scheduling' && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Scheduling</h2>
+                      <p className="text-gray-600">Scheduling settings will be available here.</p>
+                    </div>
+                  )}
+                  {activeServiceSection === 'notifications' && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Notifications</h2>
+                      <p className="text-gray-600">Notification settings will be available here.</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Knowledge Base Section Content */}
+              {activeMainSection === 'knowledge-base' && (
+                <>
+                  {activeKnowledgeBaseSection === 'fallback-response' && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Fallback Response</h2>
+                      <p className="text-gray-600">Fallback response settings will be available here.</p>
+                    </div>
+                  )}
+                  {activeKnowledgeBaseSection === 'response-format' && (
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Response Format</h2>
+                      <p className="text-gray-600">Response format settings will be available here.</p>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </main>
         </div>
