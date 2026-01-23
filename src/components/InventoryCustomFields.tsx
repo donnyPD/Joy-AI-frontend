@@ -17,6 +17,9 @@ export default function InventoryCustomFields() {
   const deleteMutation = useDeleteInventoryColumnDefinition()
   const reorderMutation = useReorderInventoryColumnDefinitions()
 
+  // Defensive check: ensure columns is always an array
+  const safeColumns = Array.isArray(columns) ? columns : []
+
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingLabel, setEditingLabel] = useState('')
   const [newColumnLabel, setNewColumnLabel] = useState('')
@@ -85,7 +88,7 @@ export default function InventoryCustomFields() {
     }
 
     // Get max display order
-    const maxOrder = columns.length > 0 ? Math.max(...columns.map(c => c.displayOrder)) : -1
+    const maxOrder = safeColumns.length > 0 ? Math.max(...safeColumns.map(c => c.displayOrder)) : -1
 
     createMutation.mutate(
       {
@@ -113,7 +116,7 @@ export default function InventoryCustomFields() {
   const handleMoveUp = (index: number) => {
     if (index === 0) return
 
-    const sortedColumns = [...columns].sort((a, b) => a.displayOrder - b.displayOrder)
+    const sortedColumns = [...safeColumns].sort((a, b) => a.displayOrder - b.displayOrder)
     const updates = sortedColumns.map((col, idx) => ({
       id: col.id,
       displayOrder: idx === index ? sortedColumns[index - 1].displayOrder : idx === index - 1 ? sortedColumns[index].displayOrder : col.displayOrder,
@@ -123,9 +126,9 @@ export default function InventoryCustomFields() {
   }
 
   const handleMoveDown = (index: number) => {
-    if (index === columns.length - 1) return
+    if (index === safeColumns.length - 1) return
 
-    const sortedColumns = [...columns].sort((a, b) => a.displayOrder - b.displayOrder)
+    const sortedColumns = [...safeColumns].sort((a, b) => a.displayOrder - b.displayOrder)
     const updates = sortedColumns.map((col, idx) => ({
       id: col.id,
       displayOrder: idx === index ? sortedColumns[index + 1].displayOrder : idx === index + 1 ? sortedColumns[index].displayOrder : col.displayOrder,
@@ -141,7 +144,7 @@ export default function InventoryCustomFields() {
     })
   }
 
-  const sortedColumns = [...columns].sort((a, b) => a.displayOrder - b.displayOrder)
+  const sortedColumns = [...safeColumns].sort((a, b) => a.displayOrder - b.displayOrder)
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
