@@ -11,6 +11,9 @@ import {
   ChevronLeft,
   HelpCircle,
   Activity,
+  Receipt,
+  CalendarDays,
+  Clock,
 } from 'lucide-react'
 import Navbar from './Navbar'
 
@@ -23,6 +26,9 @@ const navItems = [
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/quotes', label: 'Quotes', icon: FileText },
   { to: '/jobs', label: 'Jobs', icon: Briefcase },
+  { to: '/visits', label: 'Visits', icon: CalendarDays },
+  { to: '/timesheets', label: 'Timesheets', icon: Clock },
+  { to: '/invoices', label: 'Invoices', icon: Receipt },
   { to: '/operations', label: 'Operations', icon: Activity },
   { to: '/services', label: 'Services', icon: Package },
 ]
@@ -31,11 +37,12 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   return (
-    <div className="min-h-screen bg-[#F7F7F9]">
+    <div className="h-screen bg-[#F7F7F9] flex flex-col overflow-hidden">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex-1 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-full overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-6 min-w-0 h-full overflow-hidden">
           <aside
             className={`bg-white border border-[#EFEFEF] rounded-2xl p-3 shadow-sm transition-all ${
               isCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-60'
@@ -114,7 +121,8 @@ export default function SidebarLayout({ children }: SidebarLayoutProps) {
             </div>
           </aside>
 
-          <section className="flex-1">{children}</section>
+            <section className="flex-1 min-w-0 h-full overflow-hidden">{children}</section>
+          </div>
         </div>
       </div>
     </div>

@@ -1,10 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { fetchJobs } from '../features/jobs/jobsApi'
 import SidebarLayout from '../components/SidebarLayout'
-
-const PINK_COLOR = '#E91E63'
 
 export default function Jobs() {
   const dispatch = useAppDispatch()
@@ -20,17 +18,17 @@ export default function Jobs() {
       return
     }
 
-    // Only fetch if we're on the jobs route, user has token, auth is loaded, and we haven't fetched for this visit
+    // Only fetch if we're on the jobs route, user is authenticated, auth is loaded, and we haven't fetched for this visit
     if (
       location.pathname === '/jobs' &&
-      user?.jobberAccessToken &&
+      user &&
       !isAuthLoading &&
       lastFetchedPathRef.current !== location.pathname
     ) {
       lastFetchedPathRef.current = location.pathname
-      dispatch(fetchJobs({ first: 20 }))
+      dispatch(fetchJobs({ limit: 100, skip: 0 }))
     }
-  }, [dispatch, user?.jobberAccessToken, isAuthLoading, location.pathname])
+  }, [dispatch, user, isAuthLoading, location.pathname])
 
   // Show loading state while auth is being fetched
   if (isAuthLoading) {
@@ -43,25 +41,6 @@ export default function Jobs() {
     )
   }
 
-  if (!user?.jobberAccessToken) {
-    return (
-      <SidebarLayout>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-yellow-800 mb-2">Jobber Not Connected</h2>
-          <p className="text-yellow-700 mb-4">
-            Please connect your Jobber account in Integrations to view jobs.
-          </p>
-          <Link
-            to="/intergation"
-            className="inline-block px-4 py-2 text-white font-medium rounded-lg"
-            style={{ backgroundColor: PINK_COLOR }}
-          >
-            Go to Integrations
-          </Link>
-        </div>
-      </SidebarLayout>
-    )
-  }
 
   if (isLoading) {
     return (
@@ -84,39 +63,78 @@ export default function Jobs() {
     )
   }
 
-  const formatDateTime = (dateString: string | null) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
-  const formatAddress = (property: any) => {
-    if (!property?.address) return 'N/A'
-    const parts = [
-      property.address.street,
-      property.address.city,
-      property.address.province,
-      property.address.postalCode,
-    ].filter(Boolean)
-    return parts.length > 0 ? parts.join(', ') : 'N/A'
-  }
-
-  const getStatusColor = (status: string) => {
-    const statusColors: Record<string, string> = {
-      DRAFT: 'bg-gray-100 text-gray-800',
-      SCHEDULED: 'bg-blue-100 text-blue-800',
-      IN_PROGRESS: 'bg-yellow-100 text-yellow-800',
-      COMPLETED: 'bg-green-100 text-green-800',
-      CANCELLED: 'bg-red-100 text-red-800',
-      CLOSED: 'bg-gray-100 text-gray-800',
-    }
-    return statusColors[status] || 'bg-gray-100 text-gray-800'
-  }
+  const columns = [
+    { key: 'jobNumber', label: 'Job #' },
+    { key: 'clientName', label: 'Client name' },
+    { key: 'leadSource', label: 'Lead source' },
+    { key: 'clientEmail', label: 'Client email' },
+    { key: 'clientPhone', label: 'Client phone' },
+    { key: 'billingStreet', label: 'Billing street' },
+    { key: 'billingCity', label: 'Billing city' },
+    { key: 'billingProvince', label: 'Billing province' },
+    { key: 'billingZip', label: 'Billing ZIP' },
+    { key: 'servicePropertyName', label: 'Service property name' },
+    { key: 'serviceStreet', label: 'Service street' },
+    { key: 'serviceCity', label: 'Service city' },
+    { key: 'serviceProvince', label: 'Service province' },
+    { key: 'serviceZip', label: 'Service ZIP' },
+    { key: 'title', label: 'Title' },
+    { key: 'createdDate', label: 'Created date' },
+    { key: 'scheduleStartDate', label: 'Scheduled start date' },
+    { key: 'closedDate', label: 'Closed date' },
+    { key: 'salesperson', label: 'Salesperson' },
+    { key: 'lineItems', label: 'Line items' },
+    { key: 'visitsAssignedTo', label: 'Visits assigned to' },
+    { key: 'invoiceNumbers', label: 'Invoice #s' },
+    { key: 'quoteNumber', label: 'Quote #' },
+    { key: 'onlineBooking', label: 'Online booking' },
+    { key: 'expensesTotal', label: 'Expenses total ($)' },
+    { key: 'timeTracked', label: 'Time tracked' },
+    { key: 'labourCostTotal', label: 'Labour cost total ($)' },
+    { key: 'lineItemCostTotal', label: 'Line item cost total ($)' },
+    { key: 'totalCosts', label: 'Total costs ($)' },
+    { key: 'quoteDiscount', label: 'Quote discount ($)' },
+    { key: 'totalRevenue', label: 'Total revenue ($)' },
+    { key: 'profit', label: 'Profit ($)' },
+    { key: 'profitPercent', label: 'Profit %' },
+    { key: 'typeOfProperty', label: 'Type of Property' },
+    { key: 'frequency', label: 'Frequency' },
+    { key: 'referredBy', label: 'Referred by' },
+    { key: 'birthdayMonth', label: 'Birthday Month' },
+    { key: 'typeOfCleaning', label: 'Type of Cleaning' },
+    { key: 'hours', label: 'Hours' },
+    { key: 'cleaningInstructions', label: 'Cleaning Instructions' },
+    { key: 'howToGetInTheHouse', label: 'How to get in the house' },
+    { key: 'detailToGetInTheHouse', label: 'Detail to get in the house:' },
+    { key: 'cleanInsideOfTheStove', label: 'Clean inside of the stove' },
+    { key: 'cleanInsideOfTheFridge', label: 'Clean inside of the fridge' },
+    { key: 'windowsToBeCleaned', label: 'Windows to be cleaned' },
+    { key: 'glassDoorsToBeCleaned', label: 'Glass doors to be cleaned' },
+    { key: 'typerOfProductsToUse', label: 'Typer of products to use:' },
+    { key: 'squareFoot', label: 'Square Foot' },
+    { key: 'exactSqFt', label: 'Exact SqFt' },
+    { key: 'zone', label: 'Zone' },
+    { key: 'parkingDetails', label: 'Parking details' },
+    { key: 'responsibidProfile', label: 'ResponsiBid Profile' },
+    { key: 'preferredTimeOfContact', label: 'Preferred Time of Contact' },
+    { key: 'additionalInstructions', label: 'Additional instructions' },
+    { key: 'pets', label: 'Pets' },
+    { key: 'clientsProductsNotes', label: "Client's Products Notes" },
+    { key: 'trashCanInventory', label: 'Trash can Inventory' },
+    { key: 'changeSheets', label: 'Change Sheets?' },
+    { key: 'cleaningTech', label: 'Cleaning Tech' },
+    { key: 'startTime', label: 'Start Time' },
+    { key: 'endTime', label: 'End Time' },
+    { key: 'billingType', label: 'Billing type' },
+    { key: 'visitFrequency', label: 'Visit frequency' },
+    { key: 'billingFrequency', label: 'Billing frequency' },
+    { key: 'automaticInvoicing', label: 'Automatic invoicing' },
+    { key: 'total', label: 'Total ($)' },
+    { key: 'completedVisits', label: 'Completed visits' },
+    { key: 'numberOfInvoices', label: 'Number of invoices' },
+    { key: 'scheduleEndDate', label: 'Schedule end date' },
+    { key: 'replied', label: 'Replied' },
+  ] as const
 
   return (
     <SidebarLayout>
@@ -129,59 +147,30 @@ export default function Jobs() {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-200px)]">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Job #
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Title
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Client
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Property
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Start Date
-                    </th>
+                    {columns.map((column) => (
+                      <th
+                        key={column.key}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        {column.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {jobs.map((job) => (
                     <tr key={job.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{job.jobNumber}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{job.title || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{job.client?.name || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-500">{formatAddress(job.property)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{job.jobType || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(job.jobStatus)}`}>
-                          {job.jobStatus}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{formatDateTime(job.startAt)}</div>
-                      </td>
+                      {columns.map((column) => (
+                        <td key={column.key} className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {(job as any)[column.key] || 'N/A'}
+                          </div>
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>

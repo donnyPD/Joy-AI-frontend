@@ -4,31 +4,48 @@ import { fetchQuotes } from './quotesApi'
 interface Quote {
   id: string
   quoteNumber: string
-  title: string | null
-  quoteStatus: string
-  createdAt: string
-  updatedAt: string
-  amounts: {
-    subtotal: string
-    total: string
-  } | null
-  client: {
-    id: string
-    name: string
-    firstName: string | null
-    lastName: string | null
-    companyName: string | null
-  } | null
-  property: {
-    id: string
-    name: string | null
-    address: {
-      street: string | null
-      city: string | null
-      province: string | null
-      postalCode: string | null
-    } | null
-  } | null
+  clientName: string
+  clientEmail: string
+  clientPhone: string
+  sentTo: string
+  servicePropertyName: string
+  serviceStreet: string
+  serviceCity: string
+  serviceProvince: string
+  serviceZip: string
+  salesperson: string
+  title: string
+  status: string
+  leadSource: string
+  lineItems: string
+  subtotal: string
+  total: string
+  discount: string
+  requiredDeposit: string
+  collectedDeposit: string
+  jobNumbers: string
+  sentByUser: string
+  clientHubViewedAt: string
+  draftedDate: string
+  sentDate: string
+  changesRequestedDate: string
+  approvedDate: string
+  convertedDate: string
+  archivedDate: string
+  timeEstimated: string
+  birthdayMonth: string
+  referredBy: string
+  typeOfProperty: string
+  desiredFrequency: string
+  exactSqFt: string
+  typeOfCleaning: string
+  additionalRequest: string
+  parkingDetails: string
+  squareFoot: string
+  frequency: string
+  preferredTimeOfContact: string
+  zone: string
+  dirtScale: string
 }
 
 interface QuotesState {
@@ -65,8 +82,8 @@ const quotesSlice = createSlice({
       })
       .addCase(fetchQuotes.fulfilled, (state, action) => {
         state.isLoading = false
-        state.quotes = action.payload.data.quotes.nodes
-        state.pageInfo = action.payload.data.quotes.pageInfo
+        state.quotes = action.payload.quotes
+        state.pageInfo = null // No pagination for DB queries
       })
       .addCase(fetchQuotes.rejected, (state, action) => {
         state.isLoading = false
