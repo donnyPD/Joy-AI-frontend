@@ -1932,6 +1932,8 @@ export default function Inventory() {
     error: categoriesError,
   } = useInventoryCategories()
   const { data: columnDefinitions = [] } = useInventoryColumnDefinitions()
+  // Defensive check: ensure columnDefinitions is always an array
+  const safeColumnDefinitions = Array.isArray(columnDefinitions) ? columnDefinitions : []
   const { data: snapshot } = useInventorySnapshot(
     !isCurrentMonth ? selectedMonth : undefined,
     !isCurrentMonth ? selectedYear : undefined
@@ -2483,7 +2485,7 @@ export default function Inventory() {
                           <td className="px-4 py-3 text-center">
                             <span>{item.toBeOrdered}</span>
                           </td>
-                          {columnDefinitions
+                          {safeColumnDefinitions
                             .filter(col => col.isVisible)
                             .sort((a, b) => a.displayOrder - b.displayOrder)
                             .map((col) => {

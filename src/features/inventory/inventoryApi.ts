@@ -730,9 +730,26 @@ export function useInventoryColumnDefinitions() {
   return useQuery<InventoryColumnDefinition[]>({
     queryKey: ['/inventory-column-definitions'],
     queryFn: async () => {
-      const response = await api.get<InventoryColumnDefinition[]>('/inventory-column-definitions')
-      return response.data
+      try {
+        const response = await api.get<InventoryColumnDefinition[]>('/inventory-column-definitions')
+        // Ensure we always return an array, even if response.data is null/undefined
+        return Array.isArray(response.data) ? response.data : []
+      } catch (error: any) {
+        // Log the error for debugging
+        console.error('Error fetching inventory column definitions:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+        })
+        // Return empty array on error to prevent .map() failures
+        return []
+      }
     },
+    // Set default data to empty array to prevent undefined issues
+    initialData: [],
+    // Retry once on failure
+    retry: 1,
   })
 }
 

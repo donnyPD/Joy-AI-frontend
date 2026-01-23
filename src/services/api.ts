@@ -1,6 +1,23 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+// Normalize API base URL to ensure it always ends with /api
+const getNormalizedApiUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  // Remove trailing slash if present
+  const cleanUrl = envUrl.replace(/\/$/, '')
+  // Ensure it ends with /api
+  if (cleanUrl.endsWith('/api')) {
+    return cleanUrl
+  }
+  return `${cleanUrl}/api`
+}
+
+const API_BASE_URL = getNormalizedApiUrl()
+
+// Log the normalized URL for debugging (only in development)
+if (import.meta.env.DEV) {
+  console.log('🔧 API Base URL:', API_BASE_URL)
+}
 
 // Main API instance - baseURL already includes /api from env or default
 export const api = axios.create({
