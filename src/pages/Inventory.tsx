@@ -689,8 +689,20 @@ function AdvancedNotesSection() {
 
   const handleSubmitNote = () => {
     if (noteText.trim()) {
+      // Generate nyTimestamp (NY timezone timestamp)
+      const now = new Date()
+      const nyTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const nyTimestamp = nyTime.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+
       createNoteMutation.mutate({
         noteText: noteText.trim(),
+        nyTimestamp,
         noteType,
         teamMemberId: noteType === 'technician' && selectedTeamMemberId ? selectedTeamMemberId : null,
       })
@@ -2646,8 +2658,6 @@ export default function Inventory() {
             isOpen={isAddPurchaseDialogOpen}
             onClose={() => setIsAddPurchaseDialogOpen(false)}
             inventoryItems={inventory}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
           />
         )}
 
@@ -2700,14 +2710,10 @@ function AddPurchaseDialog({
   isOpen,
   onClose,
   inventoryItems,
-  selectedMonth,
-  selectedYear,
 }: {
   isOpen: boolean
   onClose: () => void
   inventoryItems: InventoryType[]
-  selectedMonth: number
-  selectedYear: number
 }) {
   const [itemName, setItemName] = useState('')
   const [itemId, setItemId] = useState<string | null>(null)

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useCreateInventoryNote, useUpdateInventoryNote } from '../features/inventory-notes/inventoryNotesApi'
-import type { CreateInventoryNoteData, InventoryNote } from '../features/inventory-notes/inventoryNotesApi'
+import type { InventoryNote } from '../features/inventory-notes/inventoryNotesApi'
+import type { CreateInventoryNoteData } from '../features/inventory/types'
 
 interface NoteEntryDialogProps {
   open: boolean
