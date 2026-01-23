@@ -18,6 +18,8 @@ import ManageTeam from './pages/ManageTeam'
 import TeamMemberDetail from './pages/TeamMemberDetail'
 import Inventory from './pages/Inventory'
 import Metrics from './pages/Metrics'
+import PublicInventoryForm from './pages/PublicInventoryForm'
+import InventoryPurchaseOrder from './pages/InventoryPurchaseOrder'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -43,6 +45,7 @@ function App() {
 
   return (
     <Routes>
+      <Route path="/public/inventory-form" element={<PublicInventoryForm />} />
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
       <Route
@@ -102,6 +105,10 @@ function App() {
       <Route
         path="/operations/inventory"
         element={isAuthenticated ? <Inventory /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/operations/inventory/add-purchase"
+        element={isAuthenticated ? <InventoryPurchaseOrder /> : <Navigate to="/signin" />}
       />
       <Route
         path="/services"
