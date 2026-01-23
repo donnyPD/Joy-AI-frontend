@@ -10,7 +10,7 @@ export const api = axios.create({
   },
 })
 
-// Separate API instance for auth endpoints without /api prefix
+// Separate API instance for auth endpoints
 export const authApi = axios.create({
   baseURL: API_BASE_URL,
   headers: {
