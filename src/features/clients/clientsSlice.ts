@@ -113,11 +113,10 @@ const clientsSlice = createSlice({
           const safePhones = Array.isArray(phones) ? phones : []
           const primaryPhoneNumber = safePhones.find((phone) => phone?.primary)?.number || null
           const getPhoneByDescription = (matches: string[]) =>
-            safePhones.find(
-              (phone) =>
-                phone?.description &&
-                matches.some((match) => phone.description.toLowerCase().includes(match)),
-            )?.number || null
+            safePhones.find((phone) => {
+              const description = phone?.description?.toLowerCase()
+              return description ? matches.some((match) => description.includes(match)) : false
+            })?.number || null
           const workPhoneNumber = getPhoneByDescription(['work'])
           const mobilePhoneNumber = getPhoneByDescription(['mobile', 'cell'])
           const homePhoneNumber = getPhoneByDescription(['home'])
