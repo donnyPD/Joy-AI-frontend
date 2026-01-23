@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
+import type { CreateInventoryNoteData } from '../inventory/types'
 
 export interface InventoryNote {
   id: string
@@ -9,13 +10,6 @@ export interface InventoryNote {
   noteType: string
   teamMemberId?: string | null
   createdAt: string
-}
-
-export interface CreateInventoryNoteData {
-  noteText: string
-  nyTimestamp: string
-  noteType: string
-  teamMemberId?: string | null
 }
 
 export interface UpdateInventoryNoteData {

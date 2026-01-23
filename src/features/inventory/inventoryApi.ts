@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
+import type { CreateInventoryNoteData } from './types'
 
 // Types ported from Replit shared/schema.ts
 export interface Inventory {
@@ -409,12 +410,6 @@ export function useInventoryNotes(month?: number, year?: number) {
     },
     enabled: !!month && !!year,
   })
-}
-
-export interface CreateInventoryNoteData {
-  noteText: string
-  noteType: 'general' | 'technician'
-  teamMemberId?: string | null
 }
 
 export function useCreateInventoryNote() {

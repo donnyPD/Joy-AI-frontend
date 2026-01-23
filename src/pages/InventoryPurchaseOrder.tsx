@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Trash2, Check, Loader2 } from 'lucide-react'
 import {
   useInventory,
@@ -10,7 +9,6 @@ import {
   useDeleteInventoryStore,
   useCreateInventoryPurchases,
   type Inventory as InventoryType,
-  type InventoryCategory,
   type InventoryStore,
 } from '../features/inventory/inventoryApi'
 import { useTeamMembers } from '../features/team-members/teamMembersApi'
