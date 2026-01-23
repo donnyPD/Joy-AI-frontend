@@ -12,6 +12,9 @@ import Integration from './pages/Integration'
 import Clients from './pages/Clients'
 import Quotes from './pages/Quotes'
 import Jobs from './pages/Jobs'
+import Invoices from './pages/Invoices'
+import Visits from './pages/Visits'
+import Timesheets from './pages/Timesheets'
 import Operations from './pages/Operations'
 import Services from './pages/Services'
 import ManageTeam from './pages/ManageTeam'
@@ -79,6 +82,18 @@ function App() {
         path="/jobs"
         element={isAuthenticated ? <Jobs /> : <Navigate to="/signin" />}
       />
+      <Route
+        path="/invoices"
+        element={isAuthenticated ? <Invoices /> : <Navigate to="/signin" />}
+      />
+      <Route
+        path="/visits"
+        element={isAuthenticated ? <Visits /> : <Navigate to="/signin" />}
+      />
+            <Route
+              path="/timesheets"
+              element={isAuthenticated ? <Timesheets /> : <Navigate to="/signin" />}
+            />
       <Route
         path="/operations"
         element={isAuthenticated ? <Operations /> : <Navigate to="/signin" />}

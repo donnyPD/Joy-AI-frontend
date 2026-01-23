@@ -99,7 +99,7 @@ function MessageTemplateEditor() {
             onChange={(e) => setMessageTemplate(e.target.value)}
             placeholder={DEFAULT_NOTIFICATION_MESSAGE}
           />
-        </div>
+            </div>
 
         <div className="bg-gray-50 p-4 rounded-lg">
           <p className="text-sm font-medium text-gray-700 mb-3">Available Variables:</p>
@@ -119,7 +119,7 @@ function MessageTemplateEditor() {
         </div>
 
         <div className="flex justify-end">
-          <button
+              <button
             onClick={handleSave}
             disabled={updateMutation.isPending}
             className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg font-medium hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -146,10 +146,10 @@ function MessageTemplateEditor() {
                 <span>Save Message Template</span>
               </>
             )}
-          </button>
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
   )
 }
 

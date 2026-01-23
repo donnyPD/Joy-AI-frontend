@@ -1,53 +1,28 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import api from '../../services/api'
 
-interface Job {
+interface Visit {
   id: string
   jobNumber: string
-  title: string
-  jobStatus: string
-  jobType: string
-  createdDate: string
-  scheduleStartDate: string
-  scheduleEndDate: string
-  closedDate: string
-  startTime: string
-  endTime: string
+  date: string
+  times: string
+  visitTitle: string
   clientName: string
   clientEmail: string
   clientPhone: string
-  leadSource: string
-  billingStreet: string
-  billingCity: string
-  billingProvince: string
-  billingZip: string
   servicePropertyName: string
   serviceStreet: string
   serviceCity: string
   serviceProvince: string
   serviceZip: string
-  billingType: string
-  visitFrequency: string
-  billingFrequency: string
-  automaticInvoicing: string
-  visitsAssignedTo: string
+  visitCompletedDate: string
+  assignedTo: string
   lineItems: string
-  total: string
-  completedVisits: string
-  numberOfInvoices: string
-  salesperson: string
-  invoiceNumbers: string
-  quoteNumber: string
-  onlineBooking: string
-  expensesTotal: string
+  oneOffJob: string
+  visitBased: string
+  scheduleDuration: string
   timeTracked: string
-  labourCostTotal: string
-  lineItemCostTotal: string
-  totalCosts: string
-  quoteDiscount: string
-  totalRevenue: string
-  profit: string
-  profitPercent: string
+  jobType: string
   typeOfProperty: string
   frequency: string
   referredBy: string
@@ -74,28 +49,31 @@ interface Job {
   trashCanInventory: string
   changeSheets: string
   cleaningTech: string
-  replied: string
 }
 
-interface JobsResponse {
+interface VisitsResponse {
   success: boolean
   count: number
-  jobs: Job[]
+  visits: Visit[]
 }
 
-export const fetchJobs = createAsyncThunk<JobsResponse, { limit?: number; skip?: number }, { rejectValue: string }>(
-  'jobs/fetchJobs',
+export const fetchVisits = createAsyncThunk<
+  VisitsResponse,
+  { limit?: number; skip?: number },
+  { rejectValue: string }
+>(
+  'visits/fetchVisits',
   async ({ limit = 100, skip = 0 }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams()
-      if (limit) params.append('limit', limit.toString())
-      if (skip) params.append('skip', skip.toString())
-      
-      const response = await api.get<JobsResponse>(`/jobs?${params.toString()}`)
+      params.append('limit', limit.toString())
+      params.append('skip', skip.toString())
+
+      const response = await api.get<VisitsResponse>(`/visits?${params.toString()}`)
       return response.data
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || error.response?.data?.error || 'Failed to fetch jobs'
+        error.response?.data?.message || error.response?.data?.error || 'Failed to fetch visits'
       )
     }
   }
