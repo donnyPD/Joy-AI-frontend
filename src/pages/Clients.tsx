@@ -1,10 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { fetchClients } from '../features/clients/clientsApi'
 import SidebarLayout from '../components/SidebarLayout'
-
-const PINK_COLOR = '#E91E63'
 
 export default function Clients() {
   const dispatch = useAppDispatch()
