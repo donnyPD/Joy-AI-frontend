@@ -110,9 +110,23 @@ const clientsSlice = createSlice({
             console.warn('Failed to parse phonesJson:', e)
           }
 
+          const safePhones = Array.isArray(phones) ? phones : []
+          const primaryPhoneNumber = safePhones.find((phone) => phone?.primary)?.number || null
+          const getPhoneByDescription = (matches: string[]) =>
+            safePhones.find(
+              (phone) =>
+                phone?.description &&
+                matches.some((match) => phone.description.toLowerCase().includes(match)),
+            )?.number || null
+          const workPhoneNumber = getPhoneByDescription(['work'])
+          const mobilePhoneNumber = getPhoneByDescription(['mobile', 'cell'])
+          const homePhoneNumber = getPhoneByDescription(['home'])
+          const faxPhoneNumber = getPhoneByDescription(['fax'])
+          const otherPhoneNumber = getPhoneByDescription(['other'])
+
           return {
-            id: client.jId,
-            jId: client.jId,
+            id: client.id,
+            jId: client.id,
             createdDate: client.createdDate
               ? new Date(client.createdDate).toLocaleDateString('en-GB')
               : null,
@@ -122,7 +136,7 @@ const clientsSlice = createSlice({
             title: client.title || null,
             firstName: client.firstName,
             lastName: client.lastName,
-            mainPhone: client.mainPhone || null,
+            mainPhone: primaryPhoneNumber || client.mainPhone || null,
             email:
               client.email ||
               (Array.isArray(emails) ? emails.map((e) => e.address).filter(Boolean).join(', ') : null),
@@ -143,11 +157,11 @@ const clientsSlice = createSlice({
             cftTypeOfProperty: client.cftTypeOfProperty || null,
             cftAdditionalInfo: client.cftAdditionalInfo || null,
             cftResponsibidProfile: client.cftResponsibidProfile || null,
-            workPhone: client.workPhone || null,
-            mobilePhone: client.mobilePhone || null,
-            homePhone: client.homePhone || null,
-            faxPhone: client.faxPhone || null,
-            otherPhone: client.otherPhone || null,
+            workPhone: workPhoneNumber || client.workPhone || null,
+            mobilePhone: mobilePhoneNumber || client.mobilePhone || null,
+            homePhone: homePhoneNumber || client.homePhone || null,
+            faxPhone: faxPhoneNumber || client.faxPhone || null,
+            otherPhone: otherPhoneNumber || client.otherPhone || null,
             servicePropertyName: client.servicePropertyName || null,
             serviceStreet1: client.serviceStreet1 || null,
             serviceStreet2: client.serviceStreet2 || null,
@@ -155,7 +169,7 @@ const clientsSlice = createSlice({
             serviceState: client.serviceState || null,
             serviceCountry: client.serviceCountry || null,
             serviceZip: client.serviceZip || null,
-            textMessageEnabledPhone: client.textMessageEnabledPhone || null,
+            textMessageEnabledPhone: client.textMessageEnabledPhone || primaryPhoneNumber || null,
             receivesAutoVisitReminders: !!client.receivesAutoVisitReminders,
             receivesAutoJobFollowups: !!client.receivesAutoJobFollowups,
             receivesAutoQuoteFollowups: !!client.receivesAutoQuoteFollowups,

@@ -29,12 +29,6 @@ interface ClientsResponse {
   clients: Client[]
 }
 
-interface ClientsResponse {
-  success: boolean
-  count: number
-  clients: Client[]
-}
-
 export const fetchClients = createAsyncThunk<ClientsResponse, void, { rejectValue: string }>(
   'clients/fetchClients',
   async (_, { rejectWithValue }) => {

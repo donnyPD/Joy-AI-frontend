@@ -98,7 +98,7 @@ export default function Visits() {
     { key: 'cleanInsideOfTheFridge', label: 'Clean inside of the fridge' },
     { key: 'windowsToBeCleaned', label: 'Windows to be cleaned' },
     { key: 'glassDoorsToBeCleaned', label: 'Glass doors to be cleaned' },
-    { key: 'typerOfProductsToUse', label: 'Typer of products to use:' },
+    { key: 'typerOfProductsToUse', label: 'Type of products to use:' },
     { key: 'squareFoot', label: 'Square Foot' },
     { key: 'exactSqFt', label: 'Exact SqFt' },
     { key: 'zone', label: 'Zone' },
