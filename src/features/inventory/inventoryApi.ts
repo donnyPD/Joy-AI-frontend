@@ -16,6 +16,7 @@ export interface Inventory {
   threshold: number
   rowNumber?: number | null
   preferredStore?: string | null
+  dynamicFields?: Record<string, string> | null
   createdAt: string
   updatedAt: string
 }
@@ -120,6 +121,7 @@ export interface UpdateInventoryItemData {
   toBeOrdered?: number
   threshold?: number
   preferredStore?: string
+  dynamicFields?: Record<string, string>
 }
 
 // Inventory hooks
@@ -140,10 +142,19 @@ export function useInventoryItem(id: string | undefined) {
   return useQuery<Inventory>({
     queryKey: ['/inventory', id],
     queryFn: async () => {
-      const response = await api.get<Inventory>(`/inventory/${id}`)
-      return response.data
+      try {
+        const response = await api.get<Inventory>(`/inventory/${id}`)
+        return response.data
+      } catch (error: any) {
+        // Handle 404 errors gracefully
+        if (error.response?.status === 404) {
+          throw new Error(`Inventory item with ID ${id} not found`)
+        }
+        throw error
+      }
     },
     enabled: !!id,
+    retry: false, // Don't retry on 404 errors
   })
 }
 
@@ -400,6 +411,68 @@ export function useInventoryNotes(month?: number, year?: number) {
   })
 }
 
+export interface CreateInventoryNoteData {
+  noteText: string
+  noteType: 'general' | 'technician'
+  teamMemberId?: string | null
+}
+
+export function useCreateInventoryNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation<InventoryNote, Error, CreateInventoryNoteData>({
+    mutationFn: async (data) => {
+      const response = await api.post<InventoryNote>('/inventory/notes', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory/notes'] })
+      toast.success('Note created successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create note'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+export function useUpdateInventoryNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation<InventoryNote, Error, { id: string; noteText: string }>({
+    mutationFn: async ({ id, noteText }) => {
+      const response = await api.patch<InventoryNote>(`/inventory/notes/${id}`, { noteText })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory/notes'] })
+      toast.success('Note updated successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update note'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+export function useDeleteInventoryNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => {
+      await api.delete(`/inventory/notes/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory/notes'] })
+      toast.success('Note deleted successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete note'
+      toast.error(errorMessage)
+    },
+  })
+}
+
 // Inventory Snapshots hooks
 export function useInventorySnapshot(month?: number, year?: number) {
   return useQuery<InventorySnapshot | null>({
@@ -517,18 +590,58 @@ export interface CreateInventoryPurchaseData {
 export function useCreateInventoryPurchases() {
   const queryClient = useQueryClient()
 
-  return useMutation<InventoryPurchase[], Error, CreateInventoryPurchaseData[]>({
-    mutationFn: async (purchases) => {
-      const response = await api.post<InventoryPurchase[]>('/inventory/purchases', { purchases })
+  return useMutation<InventoryPurchase[], Error, { purchases: CreateInventoryPurchaseData[]; technicianName?: string }>({
+    mutationFn: async ({ purchases, technicianName }) => {
+      const response = await api.post<InventoryPurchase[]>('/inventory/purchases', { purchases, technicianName })
       return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/inventory/purchases'] })
       queryClient.invalidateQueries({ queryKey: ['/inventory'] })
+      queryClient.invalidateQueries({ queryKey: ['/team-members'] })
       toast.success('Purchases created successfully')
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to create purchases'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+export function useUpdateInventoryPurchase() {
+  const queryClient = useQueryClient()
+
+  return useMutation<InventoryPurchase, Error, { id: string; data: Partial<CreateInventoryPurchaseData> }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.patch<InventoryPurchase>(`/inventory/purchases/${id}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory/purchases'] })
+      queryClient.invalidateQueries({ queryKey: ['/inventory'] })
+      toast.success('Purchase updated successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update purchase'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+export function useDeleteInventoryPurchase() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => {
+      await api.delete(`/inventory/purchases/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory/purchases'] })
+      queryClient.invalidateQueries({ queryKey: ['/inventory'] })
+      toast.success('Purchase deleted successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete purchase'
       toast.error(errorMessage)
     },
   })
@@ -544,5 +657,280 @@ export function useInventoryFormSubmissions(month?: number, year?: number) {
       return Array.isArray(response.data) ? response.data : []
     },
     enabled: !!month && !!year,
+  })
+}
+
+export function useUpdateInventoryFormSubmission() {
+  const queryClient = useQueryClient()
+  return useMutation<InventoryFormSubmission, Error, { id: string; data: Partial<InventoryFormSubmission> }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.patch<InventoryFormSubmission>(`/inventory-form/submissions/${id}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory-form/submissions'] })
+      toast.success('Submission updated successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update submission'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+export function useDeleteInventoryFormSubmission() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => {
+      await api.delete(`/inventory-form/submissions/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory-form/submissions'] })
+      toast.success('Submission deleted successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete submission'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Available snapshot months
+export function useInventorySnapshotMonths() {
+  return useQuery<Array<{ month: number; year: number }>>({
+    queryKey: ['/inventory/snapshot-months'],
+    queryFn: async () => {
+      const response = await api.get<Array<{ month: number; year: number }>>('/inventory/snapshot-months')
+      return response.data
+    },
+  })
+}
+
+// Inventory technicians for history dialog
+export function useInventoryTechnicianPurchases(technicianId: string | null) {
+  return useQuery({
+    queryKey: ['/inventory/technicians', technicianId, 'purchases'],
+    queryFn: async () => {
+      if (!technicianId) return []
+      const response = await api.get(`/inventory/technicians/${technicianId}/purchases`)
+      return response.data
+    },
+    enabled: !!technicianId,
+  })
+}
+
+// Inventory Column Definitions hooks
+export interface InventoryColumnDefinition {
+  id: string
+  userId: string
+  columnKey: string
+  columnLabel: string
+  displayOrder: number
+  isVisible: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export function useInventoryColumnDefinitions() {
+  return useQuery<InventoryColumnDefinition[]>({
+    queryKey: ['/inventory-column-definitions'],
+    queryFn: async () => {
+      const response = await api.get<InventoryColumnDefinition[]>('/inventory-column-definitions')
+      return response.data
+    },
+  })
+}
+
+export interface CreateInventoryColumnDefinitionData {
+  columnKey?: string
+  columnLabel: string
+  displayOrder?: number
+  isVisible?: boolean
+}
+
+export function useCreateInventoryColumnDefinition() {
+  const queryClient = useQueryClient()
+
+  return useMutation<InventoryColumnDefinition, Error, CreateInventoryColumnDefinitionData>({
+    mutationFn: async (data) => {
+      const response = await api.post<InventoryColumnDefinition>('/inventory-column-definitions', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory-column-definitions'] })
+      toast.success('Column created successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create column'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+export interface UpdateInventoryColumnDefinitionData {
+  columnLabel?: string
+  displayOrder?: number
+  isVisible?: boolean
+}
+
+export function useUpdateInventoryColumnDefinition() {
+  const queryClient = useQueryClient()
+
+  return useMutation<InventoryColumnDefinition, Error, { id: string; data: UpdateInventoryColumnDefinitionData }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.patch<InventoryColumnDefinition>(`/inventory-column-definitions/${id}`, data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory-column-definitions'] })
+      toast.success('Column updated successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update column'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+export function useDeleteInventoryColumnDefinition() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => {
+      await api.delete(`/inventory-column-definitions/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory-column-definitions'] })
+      toast.success('Column deleted successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete column'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+export function useReorderInventoryColumnDefinitions() {
+  const queryClient = useQueryClient()
+
+  return useMutation<{ success: boolean; updated: number }, Error, Array<{ id: string; displayOrder: number }>>({
+    mutationFn: async (updates) => {
+      const response = await api.patch<{ success: boolean; updated: number }>('/inventory-column-definitions/reorder', { updates })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory-column-definitions'] })
+      toast.success('Columns reordered successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to reorder columns'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Inventory Form Config hooks
+export interface InventoryFormConfig {
+  id: string
+  fieldName: string
+  fieldType: string
+  categoryName: string
+  isVisible: boolean
+  isRequired: boolean
+  dropdownMin: number
+  dropdownMax: number
+  dropdownMaxW2: number
+  displayOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface InventoryFormConfigData {
+  formConfig: InventoryFormConfig[]
+  categories: InventoryCategory[]
+  inventory: Inventory[]
+}
+
+export function useInventoryFormConfig() {
+  return useQuery<InventoryFormConfigData>({
+    queryKey: ['/inventory-form/config'],
+    queryFn: async () => {
+      const response = await api.get<InventoryFormConfigData>('/inventory-form/config')
+      return response.data
+    },
+  })
+}
+
+export function useBulkUpdateInventoryFormConfig() {
+  const queryClient = useQueryClient()
+
+  return useMutation<{ success: boolean; updated: number }, Error, InventoryFormConfig[]>({
+    mutationFn: async (configs) => {
+      const response = await api.patch<{ success: boolean; updated: number }>('/inventory-form/config/bulk', { configs })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/inventory-form/config'] })
+      toast.success('Form configuration saved successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save configuration'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Public Inventory Form types and hooks
+export interface PublicInventoryFormData {
+  categories: string[]
+  inventoryByCategory: Record<string, Inventory[]>
+  formConfig: Record<string, {
+    fieldName: string
+    categoryName: string
+    isVisible: boolean
+    isRequired: boolean
+    dropdownMin: number
+    dropdownMax: number
+    dropdownMaxW2: number
+    displayOrder: number
+  }>
+  teamMembers: Array<{
+    id: string
+    name: string
+    type: 'W2' | '1099'
+  }>
+}
+
+export interface PublicInventoryFormSubmitData {
+  submitterName: string
+  productSelections: Record<string, number>
+  toolSelections: Record<string, number>
+  additionalNotes: string
+  returningEmptyGallons: string
+}
+
+export function usePublicInventoryFormConfig() {
+  return useQuery<PublicInventoryFormData>({
+    queryKey: ['/public/inventory-form/config'],
+    queryFn: async () => {
+      const response = await api.get<PublicInventoryFormData>('/public/inventory-form/config')
+      return response.data
+    },
+  })
+}
+
+export function useSubmitPublicInventoryForm() {
+  return useMutation<any, Error, PublicInventoryFormSubmitData>({
+    mutationFn: async (data) => {
+      const response = await api.post('/public/inventory-form/submit', data)
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Form submitted successfully!')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit form'
+      toast.error(errorMessage)
+    },
   })
 }

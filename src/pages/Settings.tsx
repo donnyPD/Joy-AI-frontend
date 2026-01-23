@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { getMe } from '../features/auth/authApi'
 import { getOAuthUrl, disconnectJobber } from '../features/jobber/jobberApi'
-import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3, Zap, Briefcase, BookOpen, Calendar, Bell, Info, FileText, Globe, Save, MessageSquare } from 'lucide-react'
+import { Settings as SettingsIcon, ChevronRight, ChevronDown, Users, Sliders, BarChart3, Zap, Briefcase, BookOpen, Calendar, Bell, Info, FileText, Globe, Save, MessageSquare, Package } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import SidebarLayout from '../components/SidebarLayout'
 import TeamMemberTypesManager from '../components/TeamMemberTypesManager'
 import TeamMemberStatusesManager from '../components/TeamMemberStatusesManager'
 import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
+import InventoryCustomFields from '../components/InventoryCustomFields'
 import { useNotificationMessage, useUpdateNotificationMessage } from '../features/settings/settingsApi'
 
 const PINK_COLOR = '#E91E63'
@@ -155,10 +156,11 @@ function MessageTemplateEditor() {
 
 type IntegrationSubsection = 'google' | 'slack' | 'jobber'
 type OptionSubsection = 'types' | 'statuses'
-type MainSection = 'global-settings' | 'automations' | 'team' | 'service' | 'knowledge-base'
+type MainSection = 'global-settings' | 'automations' | 'team' | 'service' | 'knowledge-base' | 'inventory'
 type TeamSection = 'metrics' | 'team-members'
 type ServiceSection = 'scheduling' | 'notifications'
 type KnowledgeBaseSection = 'fallback-response' | 'response-format'
+type InventorySection = 'custom-fields'
 type MetricsTab = 'add-metrics' | 'delivery-channel' | 'message-template'
 
 export default function Settings() {
@@ -172,6 +174,7 @@ export default function Settings() {
   const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('team-members')
   const [activeServiceSection, setActiveServiceSection] = useState<ServiceSection>('scheduling')
   const [activeKnowledgeBaseSection, setActiveKnowledgeBaseSection] = useState<KnowledgeBaseSection>('fallback-response')
+  const [activeInventorySection, setActiveInventorySection] = useState<InventorySection>('custom-fields')
   const [activeOptionSubsection, setActiveOptionSubsection] = useState<OptionSubsection>('types')
   const [activeMetricsTab, setActiveMetricsTab] = useState<MetricsTab>('add-metrics')
   
@@ -179,6 +182,7 @@ export default function Settings() {
   const [isTeamExpanded, setIsTeamExpanded] = useState(false)
   const [isServiceExpanded, setIsServiceExpanded] = useState(false)
   const [isKnowledgeBaseExpanded, setIsKnowledgeBaseExpanded] = useState(false)
+  const [isInventoryExpanded, setIsInventoryExpanded] = useState(false)
   const [isMetricsExpanded, setIsMetricsExpanded] = useState(false)
   const [isTeamMembersExpanded, setIsTeamMembersExpanded] = useState(false)
   
@@ -275,6 +279,17 @@ export default function Settings() {
         setActiveKnowledgeBaseSection('fallback-response')
       } else if (parts[2] === 'response' && parts[3] === 'format') {
         setActiveKnowledgeBaseSection('response-format')
+      }
+      return
+    }
+
+    // Handle inventory sections
+    if (parts[0] === 'inventory') {
+      setActiveMainSection('inventory')
+      setIsInventoryExpanded(true)
+      
+      if (parts[1] === 'custom' && parts[2] === 'fields') {
+        setActiveInventorySection('custom-fields')
       }
       return
     }
@@ -723,6 +738,57 @@ export default function Settings() {
                     </div>
                   )}
                 </div>
+
+                {/* Inventory Section */}
+                <div>
+                  <button
+                    onClick={() => {
+                      setIsInventoryExpanded(!isInventoryExpanded)
+                      if (!isInventoryExpanded) {
+                        setActiveMainSection('inventory')
+                        window.location.hash = 'inventory-custom-fields'
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeMainSection === 'inventory'
+                        ? 'text-gray-900 bg-pink-50 hover:bg-pink-100'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      <span>Inventory</span>
+                    </div>
+                    {isInventoryExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  {isInventoryExpanded && (
+                    <div className="pl-4 mt-1 space-y-1">
+                      <div>
+                        <button
+                          onClick={() => {
+                            setActiveMainSection('inventory')
+                            setActiveInventorySection('custom-fields')
+                            window.location.hash = 'inventory-custom-fields'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'inventory' && activeInventorySection === 'custom-fields'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Sliders className="h-4 w-4" />
+                            <span>Custom Fields</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </nav>
             </div>
           </aside>
@@ -1028,6 +1094,15 @@ export default function Settings() {
                       <h2 className="text-xl font-semibold text-gray-900 mb-4">Response Format</h2>
                       <p className="text-gray-600">Response format settings will be available here.</p>
                     </div>
+                  )}
+                </>
+              )}
+
+              {/* Inventory Section Content */}
+              {activeMainSection === 'inventory' && (
+                <>
+                  {activeInventorySection === 'custom-fields' && (
+                    <InventoryCustomFields />
                   )}
                 </>
               )}
