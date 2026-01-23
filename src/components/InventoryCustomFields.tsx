@@ -60,11 +60,29 @@ export default function InventoryCustomFields() {
     }
 
     // Generate column key from label
-    const columnKey = newColumnLabel
+    let columnKey = newColumnLabel
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '_')
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '')
+
+    // Validate columnKey and provide fallback if empty
+    if (!columnKey || columnKey.trim() === '') {
+      // Create a sanitized version from the original label (keep first 20 chars of alphanumeric content)
+      const sanitizedLabel = newColumnLabel
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .substring(0, 20)
+      
+      // Use sanitized label with timestamp if we have any alphanumeric chars, otherwise just timestamp
+      if (sanitizedLabel && sanitizedLabel.length > 0) {
+        columnKey = `field_${sanitizedLabel}_${Date.now()}`
+      } else {
+        // Fallback: use timestamp-based key for labels with only non-alphanumeric characters
+        columnKey = `field_${Date.now()}`
+      }
+    }
 
     // Get max display order
     const maxOrder = columns.length > 0 ? Math.max(...columns.map(c => c.displayOrder)) : -1
