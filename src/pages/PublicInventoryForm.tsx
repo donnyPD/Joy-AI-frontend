@@ -1,17 +1,21 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   usePublicInventoryFormConfig,
   useSubmitPublicInventoryForm,
 } from '../features/inventory/inventoryApi'
-import { Loader2, ChevronRight, ChevronLeft, CheckCircle } from 'lucide-react'
+import { Loader2, ChevronRight, ChevronLeft, CheckCircle, AlertCircle } from 'lucide-react'
 
 interface TeamMember {
   id: string
   name: string
-  type: 'W2' | '1099'
+  type: string
 }
 
 export default function PublicInventoryForm() {
+  const [searchParams] = useSearchParams()
+  const formKey = searchParams.get('key')
+
   const [stage, setStage] = useState(1)
   const [submitterName, setSubmitterName] = useState('')
   const [selections, setSelections] = useState<Record<string, number>>({})
@@ -21,8 +25,8 @@ export default function PublicInventoryForm() {
   const [selectedTechnician, setSelectedTechnician] = useState<TeamMember | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
 
-  const { data: formData, isLoading } = usePublicInventoryFormConfig()
-  const submitMutation = useSubmitPublicInventoryForm()
+  const { data: formData, isLoading, error } = usePublicInventoryFormConfig(formKey || undefined)
+  const submitMutation = useSubmitPublicInventoryForm(formKey || undefined)
 
   // Get all unique categories from inventoryByCategory, sorted: Products first, Tools second, then others alphabetically
   const allCategories = useMemo(() => {
@@ -60,8 +64,18 @@ export default function PublicInventoryForm() {
     const configKey = `${categoryName}:${fieldName}`
     const config = formData?.formConfig?.[configKey]
     let minValue = config?.dropdownMin || 1
-    let maxValue =
-      selectedTechnician?.type === 'W2' ? config?.dropdownMaxW2 || 5 : config?.dropdownMax || 5
+    
+    // Get max value from dropdownMaxByType based on selected technician's type
+    // Fallback to 5 if type not found or dropdownMaxByType doesn't exist
+    let maxValue = 5
+    if (selectedTechnician?.type && config?.dropdownMaxByType) {
+      maxValue = config.dropdownMaxByType[selectedTechnician.type] || 5
+    } else if (config?.dropdownMaxByType) {
+      // If no technician selected, use the first available max value or default
+      const maxValues = Object.values(config.dropdownMaxByType)
+      maxValue = maxValues.length > 0 ? Math.max(...maxValues) : 5
+    }
+    
     if (minValue > maxValue) {
       ;[minValue, maxValue] = [maxValue, minValue]
     }
@@ -158,10 +172,39 @@ export default function PublicInventoryForm() {
     )
   }
 
+  // Show error if key is missing or invalid
+  if (!formKey) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Invalid Form Link</h2>
+          <p className="text-gray-600">
+            This form requires a valid access key. Please use the link provided by your administrator.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  if (error || (formData && 'message' in formData && formData.message)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Form</h2>
+          <p className="text-gray-600">
+            {error?.message || (formData && 'message' in formData ? formData.message : 'Failed to load form configuration')}
+          </p>
+        </div>
       </div>
     )
   }

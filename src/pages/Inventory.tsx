@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '../store/hooks'
 import { logout } from '../features/auth/authSlice'
@@ -28,10 +28,14 @@ import {
   useUpdateInventoryFormSubmission,
   useDeleteInventoryFormSubmission,
   useInventorySnapshotMonths,
+  useInventoryPurchasesAvailableMonths,
+  useInventoryFormSubmissionsAvailableMonths,
+  useInventoryNotesAvailableMonths,
   useInventoryTechnicianPurchases,
   useInventoryFormConfig,
   useBulkUpdateInventoryFormConfig,
   useInventoryColumnDefinitions,
+  usePublicFormKey,
   type Inventory as InventoryType,
   type InventoryCategory,
   type InventoryPurchase,
@@ -43,7 +47,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import toast from 'react-hot-toast'
-import { Pencil, Trash2, Eye, Plus, Download, ShoppingCart, StickyNote, Store, Package, X, Settings, Home, Check, Loader2, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react'
+import { useTeamMemberTypes } from '../features/team-member-options/teamMemberOptionsApi'
+import { useDefaultIdealInventory } from '../features/settings/settingsApi'
+import { Pencil, Trash2, Eye, Plus, Download, ShoppingCart, StickyNote, Store, Package, X, Settings, Home, Check, Loader2, ExternalLink, ChevronDown, ChevronRight, AlignJustify, Calendar, DollarSign } from 'lucide-react'
 
 const monthNames = [
   'January',
@@ -169,7 +175,7 @@ function InventoryBudgetCards({
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
         <div className="text-sm font-medium text-green-700 flex items-center gap-2 mb-2">
-          <span>💰</span>
+          <DollarSign className="h-4 w-4" />
           {displayPeriod} Revenue
         </div>
         <div className="text-2xl font-bold text-green-800">
@@ -179,7 +185,7 @@ function InventoryBudgetCards({
 
       <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
         <div className="text-sm font-medium text-blue-700 flex items-center gap-2 mb-2">
-          <span>📦</span>
+          <Package className="h-4 w-4" />
           3% of {revenueData.month} Revenue
         </div>
         <div className="text-2xl font-bold text-blue-800">
@@ -189,7 +195,7 @@ function InventoryBudgetCards({
 
       <div className="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-lg p-4">
         <div className="text-sm font-medium text-red-700 flex items-center gap-2 mb-2">
-          <span>📦</span>
+          <ShoppingCart className="h-4 w-4" />
           {revenueData.month} Inventory Bought
         </div>
         <div className="text-2xl font-bold text-red-800">
@@ -201,10 +207,17 @@ function InventoryBudgetCards({
 }
 
 // Supplier Order History Table Component
-function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { inventoryItems: InventoryType[] }) {
+function SupplierOrderHistoryTable({ 
+  inventoryItems: _inventoryItems
+}: { 
+  inventoryItems: InventoryType[]
+}) {
+  const navigate = useNavigate()
   const now = new Date()
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const [selectedYear, setSelectedYear] = useState(currentYear)
   const [viewOrderItems, setViewOrderItems] = useState<{
     orderId: string
     date: string
@@ -227,6 +240,51 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
   }>({ date: '', store: '', items: [] })
 
   const { data: purchases = [], isLoading, refetch } = useInventoryPurchases(selectedMonth, selectedYear)
+  const { data: availableMonths = [] } = useInventoryPurchasesAvailableMonths()
+
+  // Generate month-year options from available months
+  const generateMonthYearOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string; month: number; year: number }> = []
+    const seen = new Set<string>()
+
+    // Always include current month/year
+    const currentKey = `${currentMonth}-${currentYear}`
+    options.push({
+      value: currentKey,
+      label: `${monthNames[currentMonth - 1]} ${currentYear} (Current)`,
+      month: currentMonth,
+      year: currentYear,
+    })
+    seen.add(currentKey)
+
+    // Add options from availableMonths
+    availableMonths.forEach(({ month, year }) => {
+      const key = `${month}-${year}`
+      if (!seen.has(key)) {
+        options.push({
+          value: key,
+          label: `${monthNames[month - 1]} ${year}`,
+          month,
+          year,
+        })
+        seen.add(key)
+      }
+    })
+
+    // Sort in descending order (newest first)
+    options.sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year
+      return b.month - a.month
+    })
+
+    return options
+  }, [availableMonths, currentMonth, currentYear])
+
+  const handleMonthYearChange = (combinedValue: string) => {
+    const [month, year] = combinedValue.split('-').map(Number)
+    setSelectedMonth(month)
+    setSelectedYear(year)
+  }
   const updatePurchaseMutation = useUpdateInventoryPurchase()
   const deletePurchaseMutation = useDeleteInventoryPurchase()
 
@@ -357,27 +415,18 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
                 SUPPLIER ORDER HISTORY
               </h2>
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Month:</label>
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  
+                </label>
                 <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white"
+                  value={`${selectedMonth}-${selectedYear}`}
+                  onChange={(e) => handleMonthYearChange(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 >
-                  {monthNames.map((name, idx) => (
-                    <option key={idx + 1} value={idx + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-                <label className="text-sm font-medium text-gray-700">Year:</label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white"
-                >
-                  {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((year) => (
-                    <option key={year} value={year}>
-                      {year}
+                  {generateMonthYearOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -385,9 +434,16 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
             </div>
             <div className="flex items-center gap-2">
               <button
+                onClick={() => navigate('/operations/inventory/add-purchase')}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Order Inventory
+              </button>
+              <button
                 onClick={downloadCSV}
                 disabled={isLoading || !purchases || purchases.length === 0}
-                className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1 disabled:opacity-50"
+                className="px-3 py-1 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-white-200 flex items-center gap-1 disabled:opacity-50"
               >
                 <Download className="h-4 w-4" />
                 CSV
@@ -524,7 +580,7 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
                     type="text"
                     value={editFormData.date}
                     onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -533,7 +589,7 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
                     type="text"
                     value={editFormData.store}
                     onChange={(e) => setEditFormData({ ...editFormData, store: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -549,7 +605,7 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
                             newItems[idx].itemName = e.target.value
                             setEditFormData({ ...editFormData, items: newItems })
                           }}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                         />
                         <input
                           type="number"
@@ -559,7 +615,7 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
                             newItems[idx].quantity = parseInt(e.target.value) || 0
                             setEditFormData({ ...editFormData, items: newItems })
                           }}
-                          className="w-20 px-3 py-2 border border-gray-300 rounded-md bg-white"
+                          className="w-20 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                           placeholder="Qty"
                         />
                         <input
@@ -570,7 +626,7 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
                             newItems[idx].amount = e.target.value
                             setEditFormData({ ...editFormData, items: newItems })
                           }}
-                          className="w-24 px-3 py-2 border border-gray-300 rounded-md bg-white"
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                           placeholder="Amount"
                         />
                       </div>
@@ -631,8 +687,10 @@ function SupplierOrderHistoryTable({ inventoryItems: _inventoryItems }: { invent
 // Advanced Notes Section Component
 function AdvancedNotesSection() {
   const now = new Date()
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const [selectedYear, setSelectedYear] = useState(currentYear)
   const [noteText, setNoteText] = useState('')
   const [noteType, setNoteType] = useState<'general' | 'technician'>('general')
   const [selectedTeamMemberId, setSelectedTeamMemberId] = useState<string>('')
@@ -657,6 +715,51 @@ function AdvancedNotesSection() {
   })
 
   const { data: notes = [], isLoading: isLoadingNotes } = useInventoryNotes(selectedMonth, selectedYear)
+  const { data: availableMonths = [] } = useInventoryNotesAvailableMonths()
+
+  // Generate month-year options from available months
+  const generateMonthYearOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string; month: number; year: number }> = []
+    const seen = new Set<string>()
+
+    // Always include current month/year
+    const currentKey = `${currentMonth}-${currentYear}`
+    options.push({
+      value: currentKey,
+      label: `${monthNames[currentMonth - 1]} ${currentYear} (Current)`,
+      month: currentMonth,
+      year: currentYear,
+    })
+    seen.add(currentKey)
+
+    // Add options from availableMonths
+    availableMonths.forEach(({ month, year }) => {
+      const key = `${month}-${year}`
+      if (!seen.has(key)) {
+        options.push({
+          value: key,
+          label: `${monthNames[month - 1]} ${year}`,
+          month,
+          year,
+        })
+        seen.add(key)
+      }
+    })
+
+    // Sort in descending order (newest first)
+    options.sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year
+      return b.month - a.month
+    })
+
+    return options
+  }, [availableMonths, currentMonth, currentYear])
+
+  const handleMonthYearChange = (combinedValue: string) => {
+    const [month, year] = combinedValue.split('-').map(Number)
+    setSelectedMonth(month)
+    setSelectedYear(year)
+  }
   const createNoteMutation = useCreateInventoryNote()
   const updateNoteMutation = useUpdateInventoryNote()
   const deleteNoteMutation = useDeleteInventoryNote()
@@ -720,10 +823,19 @@ function AdvancedNotesSection() {
 
   const confirmEditNote = () => {
     if (noteToEdit) {
-      updateNoteMutation.mutate({
-        id: noteToEdit.id,
-        noteText: editNoteText,
-      })
+      updateNoteMutation.mutate(
+        {
+          id: noteToEdit.id,
+          noteText: editNoteText,
+        },
+        {
+          onSuccess: () => {
+            setEditNoteDialogOpen(false)
+            setNoteToEdit(null)
+            setEditNoteText('')
+          },
+        }
+      )
     }
   }
 
@@ -734,7 +846,12 @@ function AdvancedNotesSection() {
 
   const confirmDeleteNote = () => {
     if (noteToDelete) {
-      deleteNoteMutation.mutate(noteToDelete)
+      deleteNoteMutation.mutate(noteToDelete, {
+        onSuccess: () => {
+          setDeleteNoteDialogOpen(false)
+          setNoteToDelete(null)
+        },
+      })
     }
   }
 
@@ -744,13 +861,8 @@ function AdvancedNotesSection() {
     setNoteText(value)
     setCursorPosition(pos)
 
-    if (selectedTeamMemberId && teamMembers) {
-      const selectedTech = (teamMembers as any[]).find((t) => t.id === selectedTeamMemberId)
-      if (selectedTech && !value.toLowerCase().includes(selectedTech.name.toLowerCase())) {
-        setNoteType('general')
-        setSelectedTeamMemberId('')
-      }
-    }
+    // Don't clear technician selection based on note text content
+    // Technician selection is independent of note text
 
     const textBeforeCursor = value.substring(0, pos)
     const words = textBeforeCursor.split(/\s/)
@@ -772,19 +884,67 @@ function AdvancedNotesSection() {
     }
   }
 
+  // Helper function to extract clean technician name (without username)
+  const getCleanTechnicianName = (tech: any): string => {
+    if (!tech || !tech.name) return ''
+    const name = tech.name.trim()
+    // Remove username patterns like "Name (username)", "Name - username", "Name [username]", etc.
+    // Match patterns at the end: "Name (username)", "Name - username", "Name [username]"
+    // Also handle: "Name(username)", "Name-username", etc.
+    let cleaned = name
+    // Remove parentheses content: "Name (username)" -> "Name"
+    cleaned = cleaned.replace(/\s*\([^)]*\)\s*$/, '').trim()
+    // Remove brackets content: "Name [username]" -> "Name"
+    cleaned = cleaned.replace(/\s*\[[^\]]*\]\s*$/, '').trim()
+    // Remove dash-separated username: "Name - username" -> "Name"
+    cleaned = cleaned.replace(/\s*-\s*[^-]+$/, '').trim()
+    // Return cleaned name, or original if cleaning removed everything
+    return cleaned || name
+  }
+
   const handleSelectMention = (tech: any) => {
+    // Remove the search term that triggered the mention (e.g., "test")
+    // This is the last word before the cursor
     const textBeforeCursor = noteText.substring(0, cursorPosition)
     const textAfterCursor = noteText.substring(cursorPosition)
     const words = textBeforeCursor.split(/\s/)
-    words.pop()
-    const newTextBefore = words.length > 0 ? words.join(' ') + ' ' : ''
-    const newText = newTextBefore + tech.name + ' ' + textAfterCursor
-
-    setNoteText(newText)
+    words.pop() // Remove the last word (the search term like "test")
+    const newTextBefore = words.length > 0 ? words.join(' ') + (textAfterCursor ? ' ' : '') : ''
+    const updatedText = newTextBefore + textAfterCursor
+    
+    setNoteText(updatedText)
     setNoteType('technician')
     setSelectedTeamMemberId(tech.id)
     setShowMentionPopover(false)
     setMentionSearch('')
+  }
+
+  const handleTechnicianSelect = (technicianId: string) => {
+    if (!technicianId) {
+      // If "Select technician" (empty value) is selected, clear the selection
+      setSelectedTeamMemberId('')
+      setNoteType('general')
+      return
+    }
+
+    // Find the selected technician
+    const selectedTech = (teamMembers as any[])?.find((tech) => tech.id === technicianId)
+    if (!selectedTech) return
+
+    const cleanName = getCleanTechnicianName(selectedTech)
+    
+    // Remove technician's name from note text if it exists
+    if (cleanName && noteText) {
+      // Create a regex to match the name (case-insensitive) with word boundaries
+      const nameRegex = new RegExp(`\\b${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi')
+      let updatedText = noteText.replace(nameRegex, '').trim()
+      // Clean up multiple spaces
+      updatedText = updatedText.replace(/\s+/g, ' ')
+      setNoteText(updatedText)
+    }
+
+    setNoteType('technician')
+    setSelectedTeamMemberId(technicianId)
   }
 
   const filteredTechsForMention =
@@ -803,27 +963,18 @@ function AdvancedNotesSection() {
                 Inventory Notes
               </h2>
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Month:</label>
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  
+                </label>
                 <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white"
+                  value={`${selectedMonth}-${selectedYear}`}
+                  onChange={(e) => handleMonthYearChange(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 >
-                  {monthNames.map((name, idx) => (
-                    <option key={idx + 1} value={idx + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-                <label className="text-sm font-medium text-gray-700">Year:</label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white"
-                >
-                  {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((year) => (
-                    <option key={year} value={year}>
-                      {year}
+                  {generateMonthYearOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -850,7 +1001,7 @@ function AdvancedNotesSection() {
                     setSelectedTeamMemberId('')
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               >
                 <option value="general">General</option>
                 <option value="technician">Technician</option>
@@ -861,8 +1012,8 @@ function AdvancedNotesSection() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Technician</label>
                 <select
                   value={selectedTeamMemberId}
-                  onChange={(e) => setSelectedTeamMemberId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                  onChange={(e) => handleTechnicianSelect(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 >
                   <option value="">Select technician</option>
                   {(teamMembers || []).map((tech: any) => (
@@ -883,7 +1034,7 @@ function AdvancedNotesSection() {
               value={noteText}
               onChange={handleNoteTextChange}
               placeholder="Enter your note here..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md min-h-[120px] resize-none bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md min-h-[120px] resize-none bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
             />
             {showMentionPopover && filteredTechsForMention.length > 0 && (
               <div className="absolute z-10 mt-1 w-64 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-auto">
@@ -1130,7 +1281,7 @@ function AdvancedNotesSection() {
               onChange={(e) => setEditNoteText(e.target.value)}
               placeholder="Enter note text..."
               rows={5}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md mb-4 bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md mb-4 bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
             />
             <div className="flex justify-end gap-3">
               <button
@@ -1228,7 +1379,7 @@ function StoresManagement() {
               value={newStoreName}
               onChange={(e) => setNewStoreName(e.target.value)}
               placeholder="Enter store name"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreateStore()
               }}
@@ -1294,13 +1445,61 @@ function StoresManagement() {
 // Inventory Requested Section Component
 function InventoryRequestedSection() {
   const now = new Date()
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const [selectedYear, setSelectedYear] = useState(currentYear)
   const [selectedSubmission, setSelectedSubmission] = useState<InventoryFormSubmission | null>(null)
   const [editingSubmission, setEditingSubmission] = useState<InventoryFormSubmission | null>(null)
   const [deleteConfirmSubmission, setDeleteConfirmSubmission] = useState<InventoryFormSubmission | null>(null)
+  const [isViewAllDialogOpen, setIsViewAllDialogOpen] = useState(false)
 
   const { data: submissions = [], isLoading } = useInventoryFormSubmissions(selectedMonth, selectedYear)
+  const { data: availableMonths = [] } = useInventoryFormSubmissionsAvailableMonths()
+
+  // Generate month-year options from available months
+  const generateMonthYearOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string; month: number; year: number }> = []
+    const seen = new Set<string>()
+
+    // Always include current month/year
+    const currentKey = `${currentMonth}-${currentYear}`
+    options.push({
+      value: currentKey,
+      label: `${monthNames[currentMonth - 1]} ${currentYear} (Current)`,
+      month: currentMonth,
+      year: currentYear,
+    })
+    seen.add(currentKey)
+
+    // Add options from availableMonths
+    availableMonths.forEach(({ month, year }) => {
+      const key = `${month}-${year}`
+      if (!seen.has(key)) {
+        options.push({
+          value: key,
+          label: `${monthNames[month - 1]} ${year}`,
+          month,
+          year,
+        })
+        seen.add(key)
+      }
+    })
+
+    // Sort in descending order (newest first)
+    options.sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year
+      return b.month - a.month
+    })
+
+    return options
+  }, [availableMonths, currentMonth, currentYear])
+
+  const handleMonthYearChange = (combinedValue: string) => {
+    const [month, year] = combinedValue.split('-').map(Number)
+    setSelectedMonth(month)
+    setSelectedYear(year)
+  }
   const updateSubmissionMutation = useUpdateInventoryFormSubmission()
   const deleteSubmissionMutation = useDeleteInventoryFormSubmission()
 
@@ -1340,32 +1539,30 @@ function InventoryRequestedSection() {
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-bold text-gray-900">INVENTORY REQUESTED</h2>
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Month:</label>
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  
+                </label>
                 <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white"
+                  value={`${selectedMonth}-${selectedYear}`}
+                  onChange={(e) => handleMonthYearChange(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 >
-                  {monthNames.map((name, idx) => (
-                    <option key={idx + 1} value={idx + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-                <label className="text-sm font-medium text-gray-700">Year:</label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white"
-                >
-                  {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((year) => (
-                    <option key={year} value={year}>
-                      {year}
+                  {generateMonthYearOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
+            <button
+              onClick={() => setIsViewAllDialogOpen(true)}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5 text-gray-700 transition-colors"
+            >
+              <AlignJustify className="h-4 w-4" />
+              View All
+            </button>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -1388,25 +1585,24 @@ function InventoryRequestedSection() {
                     <td className="px-4 py-3 font-medium">{submission.submitterName}</td>
                     <td className="px-4 py-3 text-center">{formatDate(submission.createdAt)}</td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => setSelectedSubmission(submission)}
-                          className="px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+                          className="p-2 border border-gray-800 text-gray-800 rounded-md hover:bg-gray-50 flex items-center justify-center transition-colors"
                         >
-                          <Eye className="h-3 w-3" />
-                          View
+                          <Eye className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setEditingSubmission(submission)}
-                          className="px-2 py-1 text-sm border border-blue-500 text-blue-600 rounded hover:bg-blue-50"
+                          className="p-2 border border-gray-800 text-gray-800 rounded-md hover:bg-gray-50 flex items-center justify-center transition-colors"
                         >
-                          <Pencil className="h-3 w-3" />
+                          <Pencil className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setDeleteConfirmSubmission(submission)}
-                          className="px-2 py-1 text-sm border border-red-500 text-red-600 rounded hover:bg-red-50"
+                          className="p-2 border border-red-500 bg-red-50 text-red-500 rounded-md hover:bg-red-100 flex items-center justify-center transition-colors"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -1524,6 +1720,63 @@ function InventoryRequestedSection() {
           </div>
         </div>
       )}
+
+      {/* View All Dialog */}
+      {isViewAllDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-xl font-semibold">
+                All Inventory Requests - {monthNames[selectedMonth - 1]} {selectedYear}
+              </h3>
+              <button 
+                onClick={() => setIsViewAllDialogOpen(false)} 
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Tech Name</th>
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Date</th>
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Items</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {submissions.map((submission) => {
+                        const items = getSubmissionItemsList(submission)
+                        return (
+                          <tr key={submission.id}>
+                            <td className="px-4 py-3 font-medium">{submission.submitterName}</td>
+                            <td className="px-4 py-3 text-center">{formatDate(submission.createdAt)}</td>
+                            <td className="px-4 py-3 text-center">{items.length} items</td>
+                          </tr>
+                        )
+                      })}
+                      {submissions.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                            No form submissions found for this period
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -1612,7 +1865,7 @@ function EditSubmissionDialog({
                 type="text"
                 value={submitterName}
                 onChange={(e) => setSubmitterName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               />
             </div>
 
@@ -1680,7 +1933,7 @@ function EditSubmissionDialog({
                 value={additionalNotes}
                 onChange={(e) => setAdditionalNotes(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               />
             </div>
 
@@ -1690,7 +1943,7 @@ function EditSubmissionDialog({
                 type="text"
                 value={returningEmptyGallons}
                 onChange={(e) => setReturningEmptyGallons(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               />
             </div>
           </div>
@@ -1892,6 +2145,7 @@ export default function Inventory() {
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false)
   const [selectedViewDate, setSelectedViewDate] = useState<string | null>(null)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const hasAutoExpandedRef = useRef(false)
 
   const isCurrentMonth = selectedMonth === currentMonth && selectedYear === currentYear
 
@@ -1941,6 +2195,14 @@ export default function Inventory() {
   const { data: stores = [] } = useInventoryStores()
   const { data: availableMonths = [] } = useInventorySnapshotMonths()
 
+  // Auto-expand first category on page load if categories exist
+  useEffect(() => {
+    if (categories.length > 0 && !hasAutoExpandedRef.current && !isLoadingCategories) {
+      setExpandedCategories(new Set([categories[0].id]))
+      hasAutoExpandedRef.current = true
+    }
+  }, [categories, isLoadingCategories])
+
   const deleteMutation = useDeleteInventoryItem()
   const deleteCategoryMutation = useDeleteInventoryCategory()
 
@@ -1949,7 +2211,46 @@ export default function Inventory() {
     navigate('/signin')
   }
 
-  const handleMonthYearChange = (month: number, year: number) => {
+  // Generate month-year options from available snapshots
+  const generateMonthYearOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string; month: number; year: number }> = []
+    const seen = new Set<string>()
+
+    // Always include current month/year
+    const currentKey = `${currentMonth}-${currentYear}`
+    options.push({
+      value: currentKey,
+      label: `${monthNames[currentMonth - 1]} ${currentYear} (Current)`,
+      month: currentMonth,
+      year: currentYear,
+    })
+    seen.add(currentKey)
+
+    // Add options from availableMonths
+    availableMonths.forEach(({ month, year }) => {
+      const key = `${month}-${year}`
+      if (!seen.has(key)) {
+        options.push({
+          value: key,
+          label: `${monthNames[month - 1]} ${year}`,
+          month,
+          year,
+        })
+        seen.add(key)
+      }
+    })
+
+    // Sort in descending order (newest first)
+    options.sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year
+      return b.month - a.month
+    })
+
+    return options
+  }, [availableMonths, currentMonth, currentYear])
+
+  const handleMonthYearChange = (combinedValue: string) => {
+    const [month, year] = combinedValue.split('-').map(Number)
     setSelectedMonth(month)
     setSelectedYear(year)
     setItemToEdit(null)
@@ -1971,7 +2272,6 @@ export default function Inventory() {
           name: item.name,
           type: item.type,
           categoryId,
-          totalRequested: item.totalRequested || 0,
           totalInventory: item.totalInventory || 0,
           pricePerUnit: item.pricePerUnit || null,
           idealTotalInventory: 0,
@@ -2053,6 +2353,12 @@ export default function Inventory() {
   }
 
   const handleDeleteCategoryClick = (category: InventoryCategory) => {
+    // Check if category has items
+    const categoryItems = getItemsForCategory(category.id)
+    if (categoryItems.length > 0) {
+      toast.error(`Cannot delete category "${category.name}". Please delete all items in this category first.`)
+      return
+    }
     setCategoryToDelete(category)
     setShowDeleteCategoryDialog(true)
   }
@@ -2274,13 +2580,13 @@ export default function Inventory() {
                 <Download className="h-4 w-4" />
                 Download Order List
               </button>
-              <button
+              {/* <button
                 onClick={() => setIsEditFormDialogOpen(true)}
                 className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-white flex items-center gap-2 w-full sm:w-auto"
               >
                 <Settings className="h-4 w-4" />
                 Edit Form
-              </button>
+              </button> */}
               <button
                 onClick={() => setIsManageStoresDialogOpen(true)}
                 className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-white flex items-center gap-2 w-full sm:w-auto"
@@ -2329,36 +2635,20 @@ export default function Inventory() {
                   INVENTORY ITEMS
                 </span>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Month:</label>
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4" />
+                    
+                  </label>
                   <select
-                    value={selectedMonth}
-                    onChange={(e) => handleMonthYearChange(parseInt(e.target.value), selectedYear)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                    value={`${selectedMonth}-${selectedYear}`}
+                    onChange={(e) => handleMonthYearChange(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                   >
-                    {monthNames.map((name, idx) => {
-                      const monthNum = idx + 1
-                      const isAvailable = isCurrentMonth || availableMonths.some(m => m.month === monthNum && m.year === selectedYear)
-                      return (
-                        <option key={monthNum} value={monthNum} disabled={!isAvailable && !isCurrentMonth}>
-                          {name} {!isAvailable && !isCurrentMonth ? '(No snapshot)' : ''}
-                        </option>
-                      )
-                    })}
-                  </select>
-                  <label className="text-sm font-medium text-gray-700">Year:</label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => handleMonthYearChange(selectedMonth, parseInt(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                  >
-                    {Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map((year) => {
-                      const isAvailable = isCurrentMonth || availableMonths.some(m => m.month === selectedMonth && m.year === year)
-                      return (
-                        <option key={year} value={year} disabled={!isAvailable && !isCurrentMonth}>
-                          {year} {!isAvailable && !isCurrentMonth ? '(No snapshot)' : ''}
-                        </option>
-                      )
-                    })}
+                    {generateMonthYearOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2366,7 +2656,7 @@ export default function Inventory() {
                   <select
                     value={selectedStoreFilter}
                     onChange={(e) => setSelectedStoreFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm w-[180px] bg-white"
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm w-[180px] bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                   >
                     <option value="all">All Suppliers</option>
                     {stores.map((store) => (
@@ -2427,38 +2717,35 @@ export default function Inventory() {
                     </div>
 
                     {isExpanded && (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                   <table className="w-full">
-                    <thead className="bg-white">
+                    <thead className="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-sm">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 bg-white">
                           Item Name
                         </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                           Preferred Supplier
                         </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
-                          Total Requested
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
+                          Inventory
                         </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
-                          Total Inventory
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
+                          Ideal Inventory
                         </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
-                          Ideal Total
-                        </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                           To Be Ordered
                         </th>
                         {columnDefinitions
                           .filter(col => col.isVisible)
                           .sort((a, b) => a.displayOrder - b.displayOrder)
                           .map((col) => (
-                            <th key={col.id} className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                            <th key={col.id} className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                               {col.columnLabel}
                             </th>
                           ))}
                         {isCurrentMonth && (
-                          <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                          <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                             Actions
                           </th>
                         )}
@@ -2472,9 +2759,6 @@ export default function Inventory() {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span>{item.preferredStore || '-'}</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span>{item.totalRequested}</span>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span>{item.totalInventory}</span>
@@ -2688,11 +2972,13 @@ export default function Inventory() {
           </div>
         )}
 
-<InventoryBudgetCards
-          snapshotData={snapshot?.snapshotData as MetricRow[] | undefined}
-          selectedMonth={selectedMonth}
-          selectedYear={selectedYear}
-        />
+        <div className="mt-6">
+          <InventoryBudgetCards
+            snapshotData={snapshot?.snapshotData as MetricRow[] | undefined}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+          />
+        </div>
       </div>
     </div>
   )
@@ -2862,7 +3148,7 @@ function AddPurchaseDialog({
               <select
                 value={itemId || ''}
                 onChange={(e) => handleItemSelect(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               >
                 <option value="">Select an item</option>
                 {inventoryItems.map((item) => (
@@ -2880,7 +3166,7 @@ function AddPurchaseDialog({
               <select
                 value={orderedFrom}
                 onChange={(e) => setOrderedFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               >
                 <option value="">Select supplier</option>
                 {ORDERED_FROM_OPTIONS.map((option) => (
@@ -2895,7 +3181,7 @@ function AddPurchaseDialog({
                   placeholder="Enter supplier name"
                   value={customOrderedFrom}
                   onChange={(e) => setCustomOrderedFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md mt-2 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md mt-2 bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 />
               )}
             </div>
@@ -2910,7 +3196,7 @@ function AddPurchaseDialog({
                   placeholder="e.g., $25.99"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 />
               </div>
               <div>
@@ -2922,7 +3208,7 @@ function AddPurchaseDialog({
                   min="1"
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 />
               </div>
             </div>
@@ -2935,7 +3221,7 @@ function AddPurchaseDialog({
                 type="date"
                 value={purchasedAt || ''}
                 onChange={(e) => setPurchasedAt(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               />
             </div>
           </div>
@@ -2988,18 +3274,40 @@ function EditFormConfigDialog({
   onClose: () => void
 }) {
   const { data: formConfigData, isLoading } = useInventoryFormConfig()
+  const { data: publicFormKeyData } = usePublicFormKey()
+  const { data: teamMemberTypes = [] } = useTeamMemberTypes()
   const bulkUpdateMutation = useBulkUpdateInventoryFormConfig()
   const updateCategoryVisibility = useUpdateInventoryCategory()
   const [localConfigs, setLocalConfigs] = useState<Record<string, InventoryFormConfig>>({})
   const [hasChanges, setHasChanges] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('')
 
+  // Get active Team Member Types
+  const activeTeamMemberTypes = useMemo(
+    () => teamMemberTypes.filter(type => type.isActive),
+    [teamMemberTypes]
+  )
+
   useEffect(() => {
     if (formConfigData) {
       const configMap: Record<string, InventoryFormConfig> = {}
       for (const config of formConfigData.formConfig) {
         const key = `${config.categoryName}:${config.fieldName}`
-        configMap[key] = config
+        // Ensure dropdownMaxByType exists and has all active Team Member Types
+        const maxByType = config.dropdownMaxByType || {}
+        const updatedMaxByType: Record<string, number> = { ...maxByType }
+        
+        // Add any missing Team Member Types with default value of 5
+        activeTeamMemberTypes.forEach(type => {
+          if (!(type.name in updatedMaxByType)) {
+            updatedMaxByType[type.name] = 5
+          }
+        })
+        
+        configMap[key] = {
+          ...config,
+          dropdownMaxByType: updatedMaxByType,
+        }
       }
       setLocalConfigs(configMap)
       setHasChanges(false)
@@ -3007,10 +3315,14 @@ function EditFormConfigDialog({
         setSelectedCategory(formConfigData.categories[0].name)
       }
     }
-  }, [formConfigData])
+  }, [formConfigData, activeTeamMemberTypes])
 
   const getConfigForItem = (categoryName: string, itemName: string): InventoryFormConfig => {
     const key = `${categoryName}:${itemName}`
+    const defaultMaxByType: Record<string, number> = {}
+    activeTeamMemberTypes.forEach(type => {
+      defaultMaxByType[type.name] = 5
+    })
     return (
       localConfigs[key] || {
         id: '',
@@ -3020,8 +3332,7 @@ function EditFormConfigDialog({
         isVisible: true,
         isRequired: false,
         dropdownMin: 1,
-        dropdownMax: 5,
-        dropdownMaxW2: 5,
+        dropdownMaxByType: defaultMaxByType,
         displayOrder: 0,
         createdAt: '',
         updatedAt: '',
@@ -3038,23 +3349,27 @@ function EditFormConfigDialog({
     const currentConfig = getConfigForItem(categoryName, itemName)
 
     const newConfig = { ...currentConfig, ...updates }
-    if (newConfig.dropdownMin > newConfig.dropdownMax) {
-      if (updates.dropdownMin !== undefined) {
-        newConfig.dropdownMin = newConfig.dropdownMax
-      } else if (updates.dropdownMax !== undefined) {
-        newConfig.dropdownMax = newConfig.dropdownMin
-      }
+    
+    // Handle dropdownMaxByType updates
+    if (updates.dropdownMaxByType) {
+      newConfig.dropdownMaxByType = { ...currentConfig.dropdownMaxByType, ...updates.dropdownMaxByType }
     }
-    if (newConfig.dropdownMin > newConfig.dropdownMaxW2) {
-      if (updates.dropdownMin !== undefined) {
-        newConfig.dropdownMin = newConfig.dropdownMaxW2
-      } else if (updates.dropdownMaxW2 !== undefined) {
-        newConfig.dropdownMaxW2 = newConfig.dropdownMin
+    
+    // Validate min <= all max values
+    const maxByType = newConfig.dropdownMaxByType || {}
+    Object.keys(maxByType).forEach(typeName => {
+      if (newConfig.dropdownMin > maxByType[typeName]) {
+        if (updates.dropdownMin !== undefined) {
+          newConfig.dropdownMin = Math.min(...Object.values(maxByType))
+        } else {
+          maxByType[typeName] = newConfig.dropdownMin
+        }
       }
-    }
+      if (maxByType[typeName] < 1) maxByType[typeName] = 1
+    })
+    newConfig.dropdownMaxByType = maxByType
+    
     if (newConfig.dropdownMin < 1) newConfig.dropdownMin = 1
-    if (newConfig.dropdownMax < 1) newConfig.dropdownMax = 1
-    if (newConfig.dropdownMaxW2 < 1) newConfig.dropdownMaxW2 = 1
 
     setLocalConfigs({
       ...localConfigs,
@@ -3082,7 +3397,9 @@ function EditFormConfigDialog({
     return (formConfigData?.inventory || []).filter((item) => item.categoryId === categoryId)
   }
 
-  const publicFormUrl = `${window.location.origin}/public/inventory-form`
+  const publicFormUrl = publicFormKeyData?.publicFormKey
+    ? `${window.location.origin}/public/inventory-form?key=${encodeURIComponent(publicFormKeyData.publicFormKey)}`
+    : `${window.location.origin}/public/inventory-form`
 
   if (!isOpen) return null
 
@@ -3107,7 +3424,7 @@ function EditFormConfigDialog({
                 navigator.clipboard.writeText(publicFormUrl)
                 toast.success('Link copied to clipboard!')
               }}
-              className="px-3 py-1 text-sm border border-blue-300 rounded-md hover:bg-blue-100"
+              className="px-3 py-1 text-sm border border-[#E91E63] rounded-md hover:bg-pink-50 text-[#E91E63]"
             >
               Copy Link
             </button>
@@ -3146,14 +3463,13 @@ function EditFormConfigDialog({
                   <div key={category.id} className="space-y-4">
                     <div className="p-3 bg-white rounded-lg border">
                       <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={category.isVisibleOnForm !== false}
-                          onChange={(e) => {
+                        <button
+                          type="button"
+                          onClick={() => {
                             updateCategoryVisibility.mutate(
                               {
                                 id: category.id,
-                                data: { isVisibleOnForm: e.target.checked },
+                                data: { isVisibleOnForm: !(category.isVisibleOnForm !== false) },
                               },
                               {
                                 onSuccess: () => {
@@ -3162,8 +3478,16 @@ function EditFormConfigDialog({
                               }
                             )
                           }}
-                          className="w-4 h-4"
-                        />
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                            category.isVisibleOnForm !== false ? 'bg-[#E91E63]' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              category.isVisibleOnForm !== false ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
                         <span className="text-sm font-medium">
                           Show "{category.name}" category on public form
                         </span>
@@ -3183,8 +3507,11 @@ function EditFormConfigDialog({
                             <th className="text-center p-2 text-sm font-medium">Visible</th>
                             <th className="text-center p-2 text-sm font-medium">Required</th>
                             <th className="text-center p-2 text-sm font-medium">Min Dropdown</th>
-                            <th className="text-center p-2 text-sm font-medium">Max 1099 Dropdown</th>
-                            <th className="text-center p-2 text-sm font-medium">Max W2 Dropdown</th>
+                            {activeTeamMemberTypes.map((type) => (
+                              <th key={type.id} className="text-center p-2 text-sm font-medium">
+                                Max {type.name} Dropdown
+                              </th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
@@ -3194,28 +3521,42 @@ function EditFormConfigDialog({
                               <tr key={item.id} className="border-b border-gray-100">
                                 <td className="p-2 text-sm font-medium">{item.name}</td>
                                 <td className="p-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={config.isVisible}
-                                    onChange={(e) =>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
                                       updateConfig(category.name, item.name, {
-                                        isVisible: e.target.checked,
+                                        isVisible: !config.isVisible,
                                       })
                                     }
-                                    className="w-4 h-4"
-                                  />
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                                      config.isVisible ? 'bg-[#E91E63]' : 'bg-gray-300'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        config.isVisible ? 'translate-x-6' : 'translate-x-1'
+                                      }`}
+                                    />
+                                  </button>
                                 </td>
                                 <td className="p-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={config.isRequired}
-                                    onChange={(e) =>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
                                       updateConfig(category.name, item.name, {
-                                        isRequired: e.target.checked,
+                                        isRequired: !config.isRequired,
                                       })
                                     }
-                                    className="w-4 h-4"
-                                  />
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                                      config.isRequired ? 'bg-[#E91E63]' : 'bg-gray-300'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        config.isRequired ? 'translate-x-6' : 'translate-x-1'
+                                      }`}
+                                    />
+                                  </button>
                                 </td>
                                 <td className="p-2 text-center">
                                   <input
@@ -3231,34 +3572,25 @@ function EditFormConfigDialog({
                                     max="50"
                                   />
                                 </td>
-                                <td className="p-2 text-center">
-                                  <input
-                                    type="number"
-                                    className="w-16 mx-auto text-center px-2 py-1 border border-gray-300 rounded"
-                                    value={config.dropdownMax}
-                                    onChange={(e) =>
-                                      updateConfig(category.name, item.name, {
-                                        dropdownMax: parseInt(e.target.value) || 5,
-                                      })
-                                    }
-                                    min="1"
-                                    max="50"
-                                  />
-                                </td>
-                                <td className="p-2 text-center">
-                                  <input
-                                    type="number"
-                                    className="w-16 mx-auto text-center px-2 py-1 border border-gray-300 rounded"
-                                    value={config.dropdownMaxW2}
-                                    onChange={(e) =>
-                                      updateConfig(category.name, item.name, {
-                                        dropdownMaxW2: parseInt(e.target.value) || 5,
-                                      })
-                                    }
-                                    min="1"
-                                    max="50"
-                                  />
-                                </td>
+                                {activeTeamMemberTypes.map((type) => (
+                                  <td key={type.id} className="p-2 text-center">
+                                    <input
+                                      type="number"
+                                      className="w-16 mx-auto text-center px-2 py-1 border border-gray-300 rounded"
+                                      value={config.dropdownMaxByType?.[type.name] || 5}
+                                      onChange={(e) =>
+                                        updateConfig(category.name, item.name, {
+                                          dropdownMaxByType: {
+                                            ...config.dropdownMaxByType,
+                                            [type.name]: parseInt(e.target.value) || 5,
+                                          },
+                                        })
+                                      }
+                                      min="1"
+                                      max="50"
+                                    />
+                                  </td>
+                                ))}
                               </tr>
                             )
                           })}
@@ -3320,10 +3652,11 @@ function AddItemDialog({
   onClose: () => void
 }) {
   const [name, setName] = useState('')
-  const [totalRequested, setTotalRequested] = useState('0')
   const [totalInventory, setTotalInventory] = useState('0')
   const [pricePerUnit, setPricePerUnit] = useState('')
   const [threshold] = useState('3')
+  const { data: defaultIdealInventoryData } = useDefaultIdealInventory()
+  const defaultIdealInventory = defaultIdealInventoryData?.value || 0
 
   const createMutation = useCreateInventoryItem()
 
@@ -3340,10 +3673,10 @@ function AddItemDialog({
         name: name.trim(),
         type: 'Product', // Default type
         categoryId: category.id,
-        totalRequested: parseInt(totalRequested) || 0,
         totalInventory: parseInt(totalInventory) || 0,
         pricePerUnit: pricePerUnit || undefined,
         threshold: parseInt(threshold) || 3,
+        idealTotalInventory: defaultIdealInventory,
       },
       {
         onSuccess: () => {
@@ -3366,35 +3699,21 @@ function AddItemDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               required
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Requested
-              </label>
-              <input
-                type="number"
-                value={totalRequested}
-                onChange={(e) => setTotalRequested(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                min="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Inventory
-              </label>
-              <input
-                type="number"
-                value={totalInventory}
-                onChange={(e) => setTotalInventory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                min="0"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Total Inventory
+            </label>
+            <input
+              type="number"
+              value={totalInventory}
+              onChange={(e) => setTotalInventory(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+              min="0"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -3404,7 +3723,7 @@ function AddItemDialog({
               type="text"
               value={pricePerUnit}
               onChange={(e) => setPricePerUnit(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               placeholder="e.g., 10.00"
             />
           </div>
@@ -3444,7 +3763,6 @@ function EditItemDialog({
 }) {
   const [name, setName] = useState(item.name)
   const [preferredStore, setPreferredStore] = useState(item.preferredStore || '')
-  const [totalRequested, setTotalRequested] = useState(String(item.totalRequested))
   const [totalInventory, setTotalInventory] = useState(String(item.totalInventory))
   const [idealTotalInventory, setIdealTotalInventory] = useState(String(item.idealTotalInventory))
   const [toBeOrdered, setToBeOrdered] = useState(String(item.toBeOrdered))
@@ -3501,7 +3819,6 @@ function EditItemDialog({
 
     const updateData: any = {
       name: name.trim(),
-      totalRequested: parseInt(totalRequested) || 0,
       totalInventory: parseInt(totalInventory) || 0,
       idealTotalInventory: parseInt(idealTotalInventory) || 0,
       toBeOrdered: parseInt(toBeOrdered) || 0,
@@ -3539,7 +3856,7 @@ function EditItemDialog({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 required
               />
             </div>
@@ -3552,7 +3869,7 @@ function EditItemDialog({
                 <select
                   value={preferredStore}
                   onChange={(e) => handleSupplierChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                 >
                   <option value="">None</option>
                   {availableStores.map((store) => (
@@ -3580,7 +3897,7 @@ function EditItemDialog({
                           setPreferredStore('')
                         }
                       }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                       placeholder="Enter supplier name"
                       autoFocus
                     />
@@ -3618,31 +3935,17 @@ function EditItemDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Total Requested
-                </label>
-                <input
-                  type="number"
-                  value={totalRequested}
-                  onChange={(e) => setTotalRequested(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Total Inventory
-                </label>
-                <input
-                  type="number"
-                  value={totalInventory}
-                  onChange={(e) => setTotalInventory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                  min="0"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Total Inventory
+              </label>
+              <input
+                type="number"
+                value={totalInventory}
+                onChange={(e) => setTotalInventory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+                min="0"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -3654,7 +3957,7 @@ function EditItemDialog({
                   type="number"
                   value={idealTotalInventory}
                   onChange={(e) => setIdealTotalInventory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                   min="0"
                 />
               </div>
@@ -3666,7 +3969,7 @@ function EditItemDialog({
                   type="number"
                   value={toBeOrdered}
                   onChange={(e) => setToBeOrdered(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                   min="0"
                 />
               </div>
@@ -3692,7 +3995,7 @@ function EditItemDialog({
                             [col.columnKey]: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                         placeholder={`Enter ${col.columnLabel.toLowerCase()}`}
                       />
                     </div>
@@ -3765,7 +4068,7 @@ function AddCategoryDialog({ onClose }: { onClose: () => void }) {
               type="text"
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               placeholder="e.g., Supplies, Equipment"
               required
             />

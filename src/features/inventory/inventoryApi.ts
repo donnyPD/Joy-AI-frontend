@@ -111,6 +111,7 @@ export interface CreateInventoryItemData {
   totalInventory?: number
   pricePerUnit?: string
   threshold?: number
+  idealTotalInventory?: number
 }
 
 export interface UpdateInventoryItemData {
@@ -236,6 +237,8 @@ export function useCreateInventoryCategory() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/inventory/categories'] })
+      // Also invalidate form config since it includes category data
+      queryClient.invalidateQueries({ queryKey: ['/inventory-form/config'] })
       toast.success('Category created successfully')
     },
     onError: (error: any) => {
@@ -255,6 +258,8 @@ export function useUpdateInventoryCategory() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/inventory/categories'] })
+      // Also invalidate form config since it includes category data
+      queryClient.invalidateQueries({ queryKey: ['/inventory-form/config'] })
       toast.success('Category updated successfully')
     },
     onError: (error: any) => {
@@ -274,6 +279,8 @@ export function useDeleteInventoryCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/inventory/categories'] })
       queryClient.invalidateQueries({ queryKey: ['/inventory'] })
+      // Also invalidate form config since it includes category data
+      queryClient.invalidateQueries({ queryKey: ['/inventory-form/config'] })
       toast.success('Category deleted successfully')
     },
     onError: (error: any) => {
@@ -701,6 +708,39 @@ export function useInventorySnapshotMonths() {
   })
 }
 
+// Available purchase months
+export function useInventoryPurchasesAvailableMonths() {
+  return useQuery<Array<{ month: number; year: number }>>({
+    queryKey: ['/inventory/purchases/available-months'],
+    queryFn: async () => {
+      const response = await api.get<Array<{ month: number; year: number }>>('/inventory/purchases/available-months')
+      return response.data
+    },
+  })
+}
+
+// Available form submission months
+export function useInventoryFormSubmissionsAvailableMonths() {
+  return useQuery<Array<{ month: number; year: number }>>({
+    queryKey: ['/inventory-form/submissions/available-months'],
+    queryFn: async () => {
+      const response = await api.get<Array<{ month: number; year: number }>>('/inventory-form/submissions/available-months')
+      return response.data
+    },
+  })
+}
+
+// Available note months
+export function useInventoryNotesAvailableMonths() {
+  return useQuery<Array<{ month: number; year: number }>>({
+    queryKey: ['/inventory/notes/available-months'],
+    queryFn: async () => {
+      const response = await api.get<Array<{ month: number; year: number }>>('/inventory/notes/available-months')
+      return response.data
+    },
+  })
+}
+
 // Inventory technicians for history dialog
 export function useInventoryTechnicianPurchases(technicianId: string | null) {
   return useQuery({
@@ -850,8 +890,7 @@ export interface InventoryFormConfig {
   isVisible: boolean
   isRequired: boolean
   dropdownMin: number
-  dropdownMax: number
-  dropdownMaxW2: number
+  dropdownMaxByType: Record<string, number>
   displayOrder: number
   createdAt: string
   updatedAt: string
@@ -921,20 +960,23 @@ export interface PublicInventoryFormSubmitData {
   returningEmptyGallons: string
 }
 
-export function usePublicInventoryFormConfig() {
+export function usePublicInventoryFormConfig(key?: string) {
   return useQuery<PublicInventoryFormData>({
-    queryKey: ['/public/inventory-form/config'],
+    queryKey: ['/public/inventory-form/config', key],
     queryFn: async () => {
-      const response = await api.get<PublicInventoryFormData>('/public/inventory-form/config')
+      const url = key ? `/public/inventory-form/config?key=${encodeURIComponent(key)}` : '/public/inventory-form/config'
+      const response = await api.get<PublicInventoryFormData>(url)
       return response.data
     },
+    enabled: !!key, // Only fetch if key is provided
   })
 }
 
-export function useSubmitPublicInventoryForm() {
+export function useSubmitPublicInventoryForm(key?: string) {
   return useMutation<any, Error, PublicInventoryFormSubmitData>({
     mutationFn: async (data) => {
-      const response = await api.post('/public/inventory-form/submit', data)
+      const url = key ? `/public/inventory-form/submit?key=${encodeURIComponent(key)}` : '/public/inventory-form/submit'
+      const response = await api.post(url, data)
       return response.data
     },
     onSuccess: () => {
@@ -943,6 +985,17 @@ export function useSubmitPublicInventoryForm() {
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to submit form'
       toast.error(errorMessage)
+    },
+  })
+}
+
+// Hook to get current user's public form key
+export function usePublicFormKey() {
+  return useQuery<{ publicFormKey: string }>({
+    queryKey: ['/user/public-form-key'],
+    queryFn: async () => {
+      const response = await api.get<{ publicFormKey: string }>('/user/public-form-key')
+      return response.data
     },
   })
 }

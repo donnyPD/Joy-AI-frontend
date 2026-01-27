@@ -10,6 +10,8 @@ import TeamMemberTypesManager from '../components/TeamMemberTypesManager'
 import TeamMemberStatusesManager from '../components/TeamMemberStatusesManager'
 import CustomMetricDefinitionsManager from '../components/CustomMetricDefinitionsManager'
 import InventoryCustomFields from '../components/InventoryCustomFields'
+import InventoryFormConfig from '../components/InventoryFormConfig'
+import InventoryDefaultValues from '../components/InventoryDefaultValues'
 import { useNotificationMessage, useUpdateNotificationMessage } from '../features/settings/settingsApi'
 
 const PINK_COLOR = '#E91E63'
@@ -160,7 +162,7 @@ type MainSection = 'global-settings' | 'automations' | 'team' | 'service' | 'kno
 type TeamSection = 'metrics' | 'team-members'
 type ServiceSection = 'scheduling' | 'notifications'
 type KnowledgeBaseSection = 'fallback-response' | 'response-format'
-type InventorySection = 'custom-fields'
+type InventorySection = 'custom-fields' | 'form-config' | 'default-values'
 type MetricsTab = 'add-metrics' | 'delivery-channel' | 'message-template'
 
 export default function Settings() {
@@ -290,6 +292,10 @@ export default function Settings() {
       
       if (parts[1] === 'custom' && parts[2] === 'fields') {
         setActiveInventorySection('custom-fields')
+      } else if (parts[1] === 'form' && parts[2] === 'config') {
+        setActiveInventorySection('form-config')
+      } else if (parts[1] === 'default' && parts[2] === 'values') {
+        setActiveInventorySection('default-values')
       }
       return
     }
@@ -786,6 +792,44 @@ export default function Settings() {
                           </div>
                         </button>
                       </div>
+                      <div>
+                        <button
+                          onClick={() => {
+                            setActiveMainSection('inventory')
+                            setActiveInventorySection('form-config')
+                            window.location.hash = 'inventory-form-config'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'inventory' && activeInventorySection === 'form-config'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            <span>Form Configuration</span>
+                          </div>
+                        </button>
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => {
+                            setActiveMainSection('inventory')
+                            setActiveInventorySection('default-values')
+                            window.location.hash = 'inventory-default-values'
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            activeMainSection === 'inventory' && activeInventorySection === 'default-values'
+                              ? 'text-gray-900 bg-gray-100'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Sliders className="h-4 w-4" />
+                            <span>Default Values</span>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1103,6 +1147,12 @@ export default function Settings() {
                 <>
                   {activeInventorySection === 'custom-fields' && (
                     <InventoryCustomFields />
+                  )}
+                  {activeInventorySection === 'form-config' && (
+                    <InventoryFormConfig />
+                  )}
+                  {activeInventorySection === 'default-values' && (
+                    <InventoryDefaultValues />
                   )}
                 </>
               )}

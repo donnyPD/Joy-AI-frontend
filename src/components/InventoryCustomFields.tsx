@@ -158,9 +158,9 @@ export default function InventoryCustomFields() {
         {!showAddForm && (
           <button
             onClick={() => setShowAddForm(true)}
-            className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] flex items-center gap-2"
+            className="px-3 py-1.5 text-sm bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] flex items-center gap-1.5"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             Add Column
           </button>
         )}
@@ -187,12 +187,12 @@ export default function InventoryCustomFields() {
             <button
               onClick={handleAddColumn}
               disabled={createMutation.isPending || !newColumnLabel.trim()}
-              className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:opacity-50 flex items-center gap-1"
+              className="px-2.5 py-1.5 text-sm bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:opacity-50 flex items-center gap-1"
             >
               {createMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Check className="h-4 w-4" />
+                <Check className="h-3.5 w-3.5" />
               )}
               Add
             </button>
@@ -201,9 +201,9 @@ export default function InventoryCustomFields() {
                 setShowAddForm(false)
                 setNewColumnLabel('')
               }}
-              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="px-2 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -231,16 +231,16 @@ export default function InventoryCustomFields() {
                   <button
                     onClick={() => handleMoveUp(index)}
                     disabled={index === 0 || reorderMutation.isPending}
-                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
                   >
-                    <ArrowUp className="h-4 w-4" />
+                    <ArrowUp className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => handleMoveDown(index)}
                     disabled={index === sortedColumns.length - 1 || reorderMutation.isPending}
-                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
                   >
-                    <ArrowDown className="h-4 w-4" />
+                    <ArrowDown className="h-3.5 w-3.5" />
                   </button>
                 </div>
 
@@ -260,19 +260,19 @@ export default function InventoryCustomFields() {
                     <button
                       onClick={handleSaveEdit}
                       disabled={updateMutation.isPending}
-                      className="p-2 text-green-600 hover:text-green-700"
+                      className="p-1.5 text-green-600 hover:text-green-700"
                     >
                       {updateMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Check className="h-4 w-4" />
+                        <Check className="h-3.5 w-3.5" />
                       )}
                     </button>
                     <button
                       onClick={handleCancelEdit}
-                      className="p-2 text-red-600 hover:text-red-700"
+                      className="p-1.5 text-red-600 hover:text-red-700"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ) : (
@@ -291,7 +291,7 @@ export default function InventoryCustomFields() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleToggleVisibility(column)}
-                        className={`px-3 py-1 text-xs rounded-md ${
+                        className={`px-2 py-1 text-xs rounded-md ${
                           column.isVisible
                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -301,15 +301,15 @@ export default function InventoryCustomFields() {
                       </button>
                       <button
                         onClick={() => handleStartEdit(column)}
-                        className="p-2 text-gray-400 hover:text-gray-600"
+                        className="p-1.5 text-gray-400 hover:text-gray-600"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(column.id)}
-                        className="p-2 text-red-400 hover:text-red-600"
+                        className="p-1.5 text-red-400 hover:text-red-600"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </>

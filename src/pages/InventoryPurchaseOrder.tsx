@@ -13,7 +13,7 @@ import {
 } from '../features/inventory/inventoryApi'
 import { useTeamMembers } from '../features/team-members/teamMembersApi'
 import toast from 'react-hot-toast'
-import SidebarLayout from '../components/SidebarLayout'
+import Navbar from '../components/Navbar'
 
 // Helper function to get today's date in NY timezone as YYYY-MM-DD
 function getTodayNY(): string {
@@ -45,6 +45,7 @@ export default function InventoryPurchaseOrder() {
   const [showNewStoreInput, setShowNewStoreInput] = useState(false)
   const [newStoreName, setNewStoreName] = useState('')
   const [storeToDelete, setStoreToDelete] = useState<InventoryStore | null>(null)
+  const [showDeleteStoreDialog, setShowDeleteStoreDialog] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
 
   const { data: inventoryItems = [], isLoading: isLoadingInventory } = useInventory()
@@ -324,16 +325,18 @@ export default function InventoryPurchaseOrder() {
 
   if (isLoadingInventory || isLoadingStores || isLoadingCategories) {
     return (
-      <SidebarLayout>
+      <div className="min-h-screen bg-[#F7F7F9]">
+        <Navbar />
         <div className="flex items-center justify-center min-h-screen">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </SidebarLayout>
+      </div>
     )
   }
 
   return (
-    <SidebarLayout>
+    <div className="min-h-screen bg-[#F7F7F9]">
+      <Navbar />
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -391,7 +394,10 @@ export default function InventoryPurchaseOrder() {
                 </select>
                 {stores.length > 0 && (
                   <button
-                    onClick={() => setStoreToDelete(stores[stores.length - 1])}
+                    onClick={() => {
+                      setStoreToDelete(null)
+                      setShowDeleteStoreDialog(true)
+                    }}
                     className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -424,22 +430,19 @@ export default function InventoryPurchaseOrder() {
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-10 bg-blue-50">
                   <tr>
-                    <th className="min-w-[200px] sticky left-0 bg-blue-50 font-bold text-gray-900 px-4 py-3 text-left border-b">
+                    <th className="min-w-[200px] bg-blue-50 font-bold text-gray-900 px-4 py-3 text-left border-b">
                       Items
                     </th>
-                    <th className="min-w-[150px] text-center font-bold text-gray-900 px-4 py-3 border-b">
-                      Supplier
-                    </th>
-                    <th className="min-w-[80px] text-center font-bold text-gray-900 px-4 py-3 border-b">
+                    <th className="min-w-[80px] text-center font-bold text-gray-900 px-4 py-3 border-b bg-blue-50">
                       To Be Ordered
                     </th>
-                    <th className="min-w-[80px] text-center font-bold text-gray-900 px-4 py-3 border-b">
+                    <th className="min-w-[80px] text-center font-bold text-gray-900 px-4 py-3 border-b bg-blue-50">
                       Quantity
                     </th>
-                    <th className="min-w-[100px] text-center font-bold text-gray-900 px-4 py-3 border-b">
+                    <th className="min-w-[100px] text-center font-bold text-gray-900 px-4 py-3 border-b bg-blue-50">
                       Item Price
                     </th>
-                    <th className="min-w-[100px] text-center font-bold text-gray-900 px-4 py-3 border-b">
+                    <th className="min-w-[100px] text-center font-bold text-gray-900 px-4 py-3 border-b bg-blue-50">
                       Total
                     </th>
                   </tr>
@@ -447,7 +450,7 @@ export default function InventoryPurchaseOrder() {
                 <tbody>
                   {Object.keys(groupedInventoryItems).length === 0 && globalStore ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-500">
+                      <td colSpan={5} className="text-center py-8 text-gray-500">
                         No items found with preferred supplier &quot;{globalStore}&quot;. Select a
                         different supplier or clear the filter.
                       </td>
@@ -457,8 +460,8 @@ export default function InventoryPurchaseOrder() {
                       <>
                         <tr key={`category-${categoryName}`}>
                           <td
-                            colSpan={6}
-                            className="sticky top-[41px] z-9 font-semibold text-sm text-gray-600 py-2 px-4 bg-gray-100 text-left"
+                            colSpan={5}
+                            className="font-semibold text-sm text-gray-600 py-2 px-4 bg-gray-100 text-left border-b"
                           >
                             {categoryName}
                           </td>
@@ -479,36 +482,9 @@ export default function InventoryPurchaseOrder() {
                           return (
                             <tr key={item.id} className={rowBgColor}>
                               <td
-                                className={`font-medium sticky left-0 ${rowBgColor} z-10 text-gray-900 text-sm pl-6 py-3 border-b`}
+                                className={`font-medium ${rowBgColor} text-gray-900 text-sm pl-6 py-3 border-b`}
                               >
                                 {item.name}
-                              </td>
-                              <td className="text-center py-3 border-b">
-                                <select
-                                  value={
-                                    row.selectedStore && row.selectedStore.trim() !== ''
-                                      ? row.selectedStore
-                                      : globalStore && globalStore.trim() !== ''
-                                      ? globalStore
-                                      : ''
-                                  }
-                                  onChange={(e) => {
-                                    if (e.target.value === '__other__') {
-                                      setShowNewStoreInput(true)
-                                    } else {
-                                      handleStoreChange(item.id, e.target.value)
-                                    }
-                                  }}
-                                  className="w-[140px] mx-auto text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                >
-                                  <option value="">Use global supplier</option>
-                                  {stores.map((store) => (
-                                    <option key={store.id} value={store.name}>
-                                      {store.name}
-                                    </option>
-                                  ))}
-                                  <option value="__other__">+ Add New Supplier</option>
-                                </select>
                               </td>
                               <td className="text-center text-sm py-3 border-b">{toBeOrdered}</td>
                               <td className="text-center py-3 border-b">
@@ -661,7 +637,7 @@ export default function InventoryPurchaseOrder() {
       )}
 
       {/* Delete Store Dialog */}
-      {storeToDelete && (
+      {showDeleteStoreDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b">
@@ -672,11 +648,16 @@ export default function InventoryPurchaseOrder() {
             </div>
             <div className="px-6 py-4">
               <select
+                value={storeToDelete?.id || ''}
                 onChange={(e) => {
                   const store = stores.find((s) => s.id === e.target.value)
-                  if (store) setStoreToDelete(store)
+                  if (store) {
+                    setStoreToDelete(store)
+                  } else {
+                    setStoreToDelete(null)
+                  }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63]"
               >
                 <option value="">Select supplier to delete</option>
                 {stores.map((store) => (
@@ -692,7 +673,10 @@ export default function InventoryPurchaseOrder() {
               )}
               <div className="flex justify-end gap-2 mt-4">
                 <button
-                  onClick={() => setStoreToDelete(null)}
+                  onClick={() => {
+                    setStoreToDelete(null)
+                    setShowDeleteStoreDialog(false)
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
                 >
                   Cancel
@@ -703,6 +687,7 @@ export default function InventoryPurchaseOrder() {
                       deleteStoreMutation.mutate(storeToDelete.id, {
                         onSuccess: () => {
                           setStoreToDelete(null)
+                          setShowDeleteStoreDialog(false)
                         },
                       })
                     }
@@ -750,6 +735,6 @@ export default function InventoryPurchaseOrder() {
           </div>
         </div>
       )}
-    </SidebarLayout>
+    </div>
   )
 }

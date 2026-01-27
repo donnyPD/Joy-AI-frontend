@@ -58,7 +58,7 @@ export function useUpdateInventoryNote() {
 
   return useMutation<InventoryNote, Error, { id: string; data: UpdateInventoryNoteData; teamMemberId: string }>({
     mutationFn: async ({ id, data }) => {
-      const response = await api.put<InventoryNote>(`/inventory/notes/${id}`, data)
+      const response = await api.patch<InventoryNote>(`/inventory/notes/${id}`, data)
       return response.data
     },
     onSuccess: (_, variables) => {
