@@ -2767,7 +2767,7 @@ export default function Inventory() {
                             <span>{item.idealTotalInventory}</span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span>{item.toBeOrdered}</span>
+                            <span>{(item.idealTotalInventory || 0) - (item.totalInventory || 0)}</span>
                           </td>
                           {safeColumnDefinitions
                             .filter(col => col.isVisible)
