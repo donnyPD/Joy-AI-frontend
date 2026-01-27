@@ -90,21 +90,6 @@ export default function InventoryPurchaseOrder() {
     })
   }, [globalStore])
 
-  const handleStoreChange = (itemId: string, store: string) => {
-    if (store === '__other__') {
-      setShowNewStoreInput(true)
-      return
-    }
-    // If empty string is selected, set to null so it falls back to globalStore
-    setRowData((prev) => ({
-      ...prev,
-      [itemId]: {
-        ...prev[itemId],
-        selectedStore: store === '' ? null : store,
-      },
-    }))
-  }
-
   const handleQtyChange = (itemId: string, value: string) => {
     setRowData((prev) => ({
       ...prev,

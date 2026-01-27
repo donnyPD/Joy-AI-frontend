@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   usePublicInventoryFormConfig,
@@ -72,7 +72,7 @@ export default function PublicInventoryForm() {
       maxValue = config.dropdownMaxByType[selectedTechnician.type] || 5
     } else if (config?.dropdownMaxByType) {
       // If no technician selected, use the first available max value or default
-      const maxValues = Object.values(config.dropdownMaxByType)
+      const maxValues = Object.values(config.dropdownMaxByType).filter((v): v is number => typeof v === 'number')
       maxValue = maxValues.length > 0 ? Math.max(...maxValues) : 5
     }
     
@@ -202,7 +202,7 @@ export default function PublicInventoryForm() {
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Form</h2>
           <p className="text-gray-600">
-            {error?.message || (formData && 'message' in formData ? formData.message : 'Failed to load form configuration')}
+            {error?.message || (formData && 'message' in formData ? String(formData.message) : 'Failed to load form configuration')}
           </p>
         </div>
       </div>
