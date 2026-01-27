@@ -462,7 +462,7 @@ export default function InventoryPurchaseOrder() {
                           const rowTotal = calculateRowTotal(row as RowData)
                           const rowBgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                           const toBeOrdered =
-                            (item.idealTotalInventory || 0) - (item.totalInventory || 0)
+                            Math.max(0, (item.idealTotalInventory || 0) - (item.totalInventory || 0))
 
                           return (
                             <tr key={item.id} className={rowBgColor}>

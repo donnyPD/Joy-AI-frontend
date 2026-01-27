@@ -229,7 +229,7 @@ export default function InventoryFormConfig() {
                             }
                           )
                         }}
-                        disabled={updateCategoryVisibility.isPending && updatingCategoryRef.current.has(category.id)}
+                        disabled={updateCategoryVisibility.isPending || updatingCategoryRef.current.has(category.id)}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                           category.isVisibleOnForm !== false ? 'bg-[#E91E63]' : 'bg-gray-300'
                         }`}
