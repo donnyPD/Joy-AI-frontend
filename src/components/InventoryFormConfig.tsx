@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   useInventoryFormConfig,
   useBulkUpdateInventoryFormConfig,
@@ -19,6 +19,7 @@ export default function InventoryFormConfig() {
   const [localConfigs, setLocalConfigs] = useState<Record<string, InventoryFormConfig>>({})
   const [hasChanges, setHasChanges] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const updatingCategoryRef = useRef<Set<string>>(new Set())
 
   // Get active Team Member Types
   const activeTeamMemberTypes = useMemo(
@@ -199,20 +200,37 @@ export default function InventoryFormConfig() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          
+                          // Prevent double calls - check if this category is already being updated
+                          if (updatingCategoryRef.current.has(category.id) || updateCategoryVisibility.isPending) {
+                            return
+                          }
+                          
+                          // Mark this category as being updated
+                          updatingCategoryRef.current.add(category.id)
+                          const newValue = !(category.isVisibleOnForm !== false)
+                          
                           updateCategoryVisibility.mutate(
                             {
                               id: category.id,
-                              data: { isVisibleOnForm: !(category.isVisibleOnForm !== false) },
+                              data: { isVisibleOnForm: newValue },
                             },
                             {
                               onSuccess: () => {
+                                updatingCategoryRef.current.delete(category.id)
                                 toast.success('Category visibility updated')
+                              },
+                              onError: () => {
+                                updatingCategoryRef.current.delete(category.id)
                               },
                             }
                           )
                         }}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                        disabled={updateCategoryVisibility.isPending && updatingCategoryRef.current.has(category.id)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                           category.isVisibleOnForm !== false ? 'bg-[#E91E63]' : 'bg-gray-300'
                         }`}
                       >

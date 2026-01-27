@@ -260,7 +260,7 @@ export function useUpdateInventoryCategory() {
       queryClient.invalidateQueries({ queryKey: ['/inventory/categories'] })
       // Also invalidate form config since it includes category data
       queryClient.invalidateQueries({ queryKey: ['/inventory-form/config'] })
-      toast.success('Category updated successfully')
+      // Toast is handled in the component for more specific messaging
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update category'
