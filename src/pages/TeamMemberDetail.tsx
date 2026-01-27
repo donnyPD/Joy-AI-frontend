@@ -6,10 +6,12 @@ import { useTeamMember, useUpdateTeamMember, useCustomMetricDefinitions, type Cu
 import { useKpiEntries, useUpdateKpiEntry, useDeleteKpiEntry } from '../features/kpi-entries/kpiEntriesApi'
 import { useInventoryNotes, useDeleteInventoryNote } from '../features/inventory-notes/inventoryNotesApi'
 import { useInventoryPurchases, useUpdateInventoryPurchase, useDeleteInventoryPurchase } from '../features/inventory-purchases/inventoryPurchasesApi'
+import { useInventoryFormSubmissions, useUpdateInventoryFormSubmission, useDeleteInventoryFormSubmission, type InventoryFormSubmission } from '../features/inventory/inventoryApi'
+import EditSubmissionDialog from '../components/EditSubmissionDialog'
 import UserFormDrawer from '../components/UserFormDrawer'
 import NoteEntryDialog from '../components/NoteEntryDialog'
 import CustomMetricEntryDialog from '../components/CustomMetricEntryDialog'
-import { CalendarDays, Type, Upload, DollarSign, Hash, Image, X, Edit, TrendingUp, StickyNote, Package, Pencil, Trash2 } from 'lucide-react'
+import { CalendarDays, Type, Upload, DollarSign, Hash, Image, X, Edit, TrendingUp, StickyNote, Package, Pencil, Trash2, Eye } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 function getCurrentYear(): number {
@@ -47,6 +49,49 @@ function formatDate(dateString: string): string {
   } catch {
     return dateString
   }
+}
+
+const monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+function formatSubmissionDate(dateStr: Date | string | null): string {
+  if (!dateStr) return '-'
+  const parsed = new Date(dateStr)
+  if (!isNaN(parsed.getTime())) {
+    return `${parsed.getMonth() + 1}/${parsed.getDate()}/${parsed.getFullYear()}`
+  }
+  return '-'
+}
+
+function getSubmissionItemsList(submission: InventoryFormSubmission) {
+  const products = submission.productSelections as Record<string, number> | null
+  const tools = submission.toolSelections as Record<string, number> | null
+  const items: Array<{ name: string; quantity: number; type: string }> = []
+
+  if (products && typeof products === 'object') {
+    Object.entries(products).forEach(([name, qty]) => {
+      if (qty > 0) items.push({ name, quantity: qty, type: 'Product' })
+    })
+  }
+  if (tools && typeof tools === 'object') {
+    Object.entries(tools).forEach(([name, qty]) => {
+      if (qty > 0) items.push({ name, quantity: qty, type: 'Tool' })
+    })
+  }
+
+  return items
 }
 
 const compressImage = (file: File, maxWidth: number = 800, maxHeight: number = 800, quality: number = 0.8): Promise<string> => {
@@ -206,9 +251,15 @@ export default function TeamMemberDetail() {
 
   const [activeTab, setActiveTab] = useState<'metrics' | 'notes' | 'inventory'>('metrics')
   const [filterYear, setFilterYear] = useState<string>(getCurrentYear().toString())
+  const now = new Date()
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
   const [selectedKpi, setSelectedKpi] = useState<{ type: string; name: string; isCustom?: boolean; customMetric?: CustomMetricDefinition } | null>(null)
   const [selectedNote, setSelectedNote] = useState<any | null>(null)
   const [selectedPurchase, setSelectedPurchase] = useState<any | null>(null)
+  const [selectedSubmission, setSelectedSubmission] = useState<InventoryFormSubmission | null>(null)
+  const [editingSubmission, setEditingSubmission] = useState<InventoryFormSubmission | null>(null)
+  const [deleteConfirmSubmission, setDeleteConfirmSubmission] = useState<InventoryFormSubmission | null>(null)
   const [customMetricDialogOpen, setCustomMetricDialogOpen] = useState(false)
   const [selectedCustomMetric, setSelectedCustomMetric] = useState<CustomMetricDefinition | null>(null)
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
@@ -236,16 +287,27 @@ export default function TeamMemberDetail() {
   const { data: notes = [] } = useInventoryNotes(id)
   const { data: inventoryPurchases = [] } = useInventoryPurchases(id, parseInt(filterYear))
   const { data: customMetricDefinitions = [] } = useCustomMetricDefinitions()
+  const { data: allSubmissions = [], isLoading: isLoadingSubmissions } = useInventoryFormSubmissions(selectedMonth, selectedYear)
   const updateKpiEntryMutation = useUpdateKpiEntry()
   const deleteKpiEntryMutation = useDeleteKpiEntry()
   const deleteNoteMutation = useDeleteInventoryNote()
   const updatePurchaseMutation = useUpdateInventoryPurchase()
   const deletePurchaseMutation = useDeleteInventoryPurchase()
+  const updateSubmissionMutation = useUpdateInventoryFormSubmission()
+  const deleteSubmissionMutation = useDeleteInventoryFormSubmission()
   
   // Filter to only active custom metrics
   const activeCustomMetrics = useMemo(() => {
     return customMetricDefinitions.filter(metric => metric.isActive)
   }, [customMetricDefinitions])
+
+  // Filter submissions by team member name
+  const filteredSubmissions = useMemo(() => {
+    if (!member || !allSubmissions) return []
+    return allSubmissions.filter(submission => 
+      submission.submitterName === member.name
+    )
+  }, [allSubmissions, member])
 
   const validFilter = filterYear && !isNaN(parseInt(filterYear))
   const filterYearNum = validFilter ? parseInt(filterYear) : null
@@ -1321,63 +1383,90 @@ export default function TeamMemberDetail() {
 
               {activeTab === 'inventory' && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold mb-4">Inventory Purchases</h3>
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {inventoryPurchases.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic text-center py-8">
-                        No inventory purchases for {filterYear}
-                      </p>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Inventory Form Submissions</h3>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-gray-700">Month:</label>
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white"
+                      >
+                        {monthNames.map((name, idx) => (
+                          <option key={idx + 1} value={idx + 1}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="text-sm font-medium text-gray-700">Year:</label>
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white"
+                      >
+                        {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    {isLoadingSubmissions ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
                     ) : (
-                      inventoryPurchases.map((purchase) => {
-                        const isSelected = selectedPurchase?.id === purchase.id
-                        return (
-                          <div
-                            key={purchase.id}
-                            className={`p-3 rounded-lg transition-all border ${
-                              isSelected
-                                ? 'bg-pink-50 border-[#E91E63]'
-                                : 'bg-white hover:bg-gray-50 border-gray-200'
-                            }`}
-                          >
-                            <div
-                              onClick={() => setSelectedPurchase(purchase)}
-                              className="cursor-pointer"
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <p className="text-xs text-gray-500">{purchase.purchaseDate}</p>
-                                {purchase.isCompleted && (
-                                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Completed</span>
-                                )}
-                              </div>
-                              <p className="text-sm line-clamp-2">{purchase.itemsRaw}</p>
-                            </div>
-                            <div className="flex items-center justify-end gap-2 mt-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleEditPurchase(purchase)
-                                }}
-                                className="p-1 text-gray-800 hover:text-[#E91E63] transition-colors"
-                                disabled={updatePurchaseMutation.isPending || deletePurchaseMutation.isPending}
-                                title="Edit purchase"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDeletePurchase(purchase.id)
-                                }}
-                                className="p-1 text-gray-800 hover:text-red-600 transition-colors"
-                                disabled={updatePurchaseMutation.isPending || deletePurchaseMutation.isPending}
-                                title="Delete purchase"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })
+                      <table className="w-full">
+                        <thead className="bg-white">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Date</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Items</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredSubmissions.map((submission) => {
+                            const items = getSubmissionItemsList(submission)
+                            return (
+                              <tr key={submission.id}>
+                                <td className="px-4 py-3 text-sm">{formatSubmissionDate(submission.createdAt)}</td>
+                                <td className="px-4 py-3 text-center text-sm">{items.length} items</td>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() => setSelectedSubmission(submission)}
+                                      className="p-2 border border-gray-800 text-gray-800 rounded-md hover:bg-gray-50 flex items-center justify-center transition-colors"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingSubmission(submission)}
+                                      className="p-2 border border-gray-800 text-gray-800 rounded-md hover:bg-gray-50 flex items-center justify-center transition-colors"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirmSubmission(submission)}
+                                      className="p-2 border border-red-500 bg-red-50 text-red-500 rounded-md hover:bg-red-100 flex items-center justify-center transition-colors"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                          {filteredSubmissions.length === 0 && (
+                            <tr>
+                              <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                                No form submissions found for this period
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
                     )}
                   </div>
                 </div>
@@ -1392,7 +1481,7 @@ export default function TeamMemberDetail() {
                     ? (selectedKpi ? selectedKpi.name : 'Select an item')
                     : activeTab === 'notes'
                     ? (selectedNote ? 'Note Details' : 'Select a Note')
-                    : (selectedPurchase ? 'Purchase Details' : 'Select a Purchase')}
+                    : (selectedSubmission ? 'Submission Details' : 'Select a Submission')}
                 </h3>
                 <div className="flex items-center gap-2">
                   <select
@@ -1630,26 +1719,54 @@ export default function TeamMemberDetail() {
                   </div>
                 ) : (
                   <div className="h-full overflow-y-auto">
-                    {!selectedPurchase ? (
+                    {!selectedSubmission ? (
                       <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <p className="text-gray-500">Select a purchase from the list to view its details</p>
+                        <p className="text-gray-500">Select a submission from the list to view its details</p>
                       </div>
                     ) : (
                       <div>
                         <div className="mb-4">
-                          <p className="text-sm text-gray-500">{selectedPurchase.purchaseDate}</p>
-                          {selectedPurchase.isCompleted && (
-                            <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Completed</span>
-                          )}
+                          <p className="text-sm text-gray-500">Submitted on {formatSubmissionDate(selectedSubmission.createdAt)}</p>
                         </div>
                         <div className="border-t border-gray-200 mb-4"></div>
-                        <p className="text-gray-900 whitespace-pre-wrap">{selectedPurchase.itemsRaw}</p>
-                        {selectedPurchase.itemsParsed && (
-                          <div className="mt-4">
-                            <p className="text-sm font-medium text-gray-700 mb-2">Parsed Items:</p>
-                            <pre className="text-xs bg-gray-50 p-3 rounded overflow-auto">
-                              {JSON.stringify(selectedPurchase.itemsParsed, null, 2)}
-                            </pre>
+                        <table className="w-full">
+                          <thead className="bg-white">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-sm font-medium">Item</th>
+                              <th className="px-4 py-2 text-center text-sm font-medium">Quantity</th>
+                              <th className="px-4 py-2 text-center text-sm font-medium">Type</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {getSubmissionItemsList(selectedSubmission).map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="px-4 py-2 font-medium">{item.name}</td>
+                                <td className="px-4 py-2 text-center">{item.quantity}</td>
+                                <td className="px-4 py-2 text-center">
+                                  <span
+                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                      item.type === 'Product'
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-purple-100 text-purple-700'
+                                    }`}
+                                  >
+                                    {item.type}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {selectedSubmission.additionalNotes && (
+                          <div className="mt-4 pt-4 border-t">
+                            <h4 className="font-medium mb-2">Additional Notes:</h4>
+                            <p className="text-sm text-gray-600">{selectedSubmission.additionalNotes}</p>
+                          </div>
+                        )}
+                        {selectedSubmission.returningEmptyGallons && (
+                          <div className="mt-4 pt-4 border-t">
+                            <h4 className="font-medium mb-2">Returning Empty Gallons:</h4>
+                            <p className="text-sm text-gray-600">{selectedSubmission.returningEmptyGallons}</p>
                           </div>
                         )}
                       </div>
@@ -2018,6 +2135,112 @@ export default function TeamMemberDetail() {
                   {updateKpiEntryMutation.isPending ? 'Updating...' : 'Update'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Submission Dialog */}
+      {selectedSubmission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-xl font-semibold">
+                Items Requested by {selectedSubmission.submitterName}
+              </h3>
+              <button onClick={() => setSelectedSubmission(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <p className="text-sm text-gray-600 mb-4">
+                Submitted on {formatSubmissionDate(selectedSubmission.createdAt)}
+              </p>
+              <table className="w-full">
+                <thead className="bg-white">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-sm font-medium">Item</th>
+                    <th className="px-4 py-2 text-center text-sm font-medium">Quantity</th>
+                    <th className="px-4 py-2 text-center text-sm font-medium">Type</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {getSubmissionItemsList(selectedSubmission).map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-2 font-medium">{item.name}</td>
+                      <td className="px-4 py-2 text-center">{item.quantity}</td>
+                      <td className="px-4 py-2 text-center">
+                        <span
+                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                            item.type === 'Product'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-purple-100 text-purple-700'
+                          }`}
+                        >
+                          {item.type}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {selectedSubmission.additionalNotes && (
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="font-medium mb-2">Additional Notes:</h4>
+                  <p className="text-sm text-gray-600">{selectedSubmission.additionalNotes}</p>
+                </div>
+              )}
+              {selectedSubmission.returningEmptyGallons && (
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="font-medium mb-2">Returning Empty Gallons:</h4>
+                  <p className="text-sm text-gray-600">{selectedSubmission.returningEmptyGallons}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Submission Dialog */}
+      {editingSubmission && (
+        <EditSubmissionDialog
+          submission={editingSubmission}
+          onClose={() => setEditingSubmission(null)}
+          onSave={(data) => {
+            if (editingSubmission) {
+              updateSubmissionMutation.mutate({ id: editingSubmission.id, data })
+              setEditingSubmission(null)
+            }
+          }}
+          isPending={updateSubmissionMutation.isPending}
+        />
+      )}
+
+      {/* Delete Submission Confirmation Dialog */}
+      {deleteConfirmSubmission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-xl font-semibold mb-4">Delete Submission</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete the submission by {deleteConfirmSubmission.submitterName}? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirmSubmission(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteSubmissionMutation.mutate(deleteConfirmSubmission.id)
+                  setDeleteConfirmSubmission(null)
+                }}
+                disabled={deleteSubmissionMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteSubmissionMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
