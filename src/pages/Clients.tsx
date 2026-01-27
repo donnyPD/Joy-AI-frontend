@@ -1,10 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { fetchClients } from '../features/clients/clientsApi'
 import SidebarLayout from '../components/SidebarLayout'
-
-const PINK_COLOR = '#E91E63'
 
 export default function Clients() {
   const dispatch = useAppDispatch()
@@ -20,17 +18,17 @@ export default function Clients() {
       return
     }
 
-    // Only fetch if we're on the clients route, user has token, auth is loaded, and we haven't fetched for this visit
+    // Only fetch if we're on the clients route, user is authenticated, auth is loaded, and we haven't fetched for this visit
     if (
       location.pathname === '/clients' &&
-      user?.jobberAccessToken &&
+      user &&
       !isAuthLoading &&
       lastFetchedPathRef.current !== location.pathname
     ) {
       lastFetchedPathRef.current = location.pathname
-      dispatch(fetchClients({ first: 20 }))
+      dispatch(fetchClients())
     }
-  }, [dispatch, user?.jobberAccessToken, isAuthLoading, location.pathname])
+  }, [dispatch, user, isAuthLoading, location.pathname])
 
   // Show loading state while auth is being fetched
   if (isAuthLoading) {
@@ -43,25 +41,6 @@ export default function Clients() {
     )
   }
 
-  if (!user?.jobberAccessToken) {
-    return (
-      <SidebarLayout>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-yellow-800 mb-2">Jobber Not Connected</h2>
-            <p className="text-yellow-700 mb-4">
-              Please connect your Jobber account in Integrations to view clients.
-            </p>
-          <Link
-              to="/intergation"
-            className="inline-block px-4 py-2 text-white font-medium rounded-lg"
-            style={{ backgroundColor: PINK_COLOR }}
-          >
-              Go to Integrations
-          </Link>
-        </div>
-      </SidebarLayout>
-    )
-  }
 
   if (isLoading) {
     return (
@@ -95,15 +74,68 @@ export default function Clients() {
     )
   }
 
-  const formatAddress = (address: any) => {
-    if (!address) return 'N/A'
-    const parts = [address.street, address.city, address.province, address.postalCode].filter(Boolean)
-    return parts.length > 0 ? parts.join(', ') : 'N/A'
+  const formatBool = (value: boolean) => (value ? 'Yes' : 'No')
+  const formatValue = (value: any) => {
+    if (value === null || value === undefined || value === '') return 'N/A'
+    return String(value)
   }
+
+  const columns = [
+    { key: 'jId', label: 'J-ID' },
+    { key: 'createdDate', label: 'Created Date' },
+    { key: 'isCompany', label: 'Is Company?', format: formatBool },
+    { key: 'displayName', label: 'Display Name' },
+    { key: 'companyName', label: 'Company Name' },
+    { key: 'title', label: 'Title' },
+    { key: 'firstName', label: 'First Name' },
+    { key: 'lastName', label: 'Last Name' },
+    { key: 'mainPhone', label: 'Main Phone #s' },
+    { key: 'email', label: 'E-mails' },
+    { key: 'tags', label: 'Tags' },
+    { key: 'billingStreet1', label: 'Billing Street 1' },
+    { key: 'billingStreet2', label: 'Billing Street 2' },
+    { key: 'billingCity', label: 'Billing City' },
+    { key: 'billingState', label: 'Billing State' },
+    { key: 'billingCountry', label: 'Billing Country' },
+    { key: 'billingZip', label: 'Billing Zip code' },
+    { key: 'cftHavePets', label: 'CFT[ Have Pets ]' },
+    { key: 'cftHaveKids', label: 'CFT[ Have Kids ]' },
+    { key: 'cftTrashCanInventory', label: 'CFT[Trash can Inventory]' },
+    { key: 'cftAreasToAvoid', label: 'CFT[Areas to avoid]' },
+    { key: 'cfsChangeSheets', label: 'CFS[Change sheets?]' },
+    { key: 'cftPreferredTimeRecurring', label: 'CFT[Preferred time for Recurring Services]' },
+    { key: 'cfsPreferredTimeContact', label: 'CFS[Preferred Time of Contact]' },
+    { key: 'cftTypeOfProperty', label: 'CFT[Type of Property]' },
+    { key: 'cftAdditionalInfo', label: 'CFT[Additional Information (client/service)]' },
+    { key: 'cftResponsibidProfile', label: 'CFT[ResponsiBid Profile]' },
+    { key: 'workPhone', label: 'Work Phone #s' },
+    { key: 'mobilePhone', label: 'Mobile Phone #s' },
+    { key: 'homePhone', label: 'Home Phone #s' },
+    { key: 'faxPhone', label: 'Fax Phone #s' },
+    { key: 'otherPhone', label: 'Other Phone #s' },
+    { key: 'servicePropertyName', label: 'Service Property Name' },
+    { key: 'serviceStreet1', label: 'Service Street 1' },
+    { key: 'serviceStreet2', label: 'Service Street 2' },
+    { key: 'serviceCity', label: 'Service City' },
+    { key: 'serviceState', label: 'Service State' },
+    { key: 'serviceCountry', label: 'Service Country' },
+    { key: 'serviceZip', label: 'Service Zip code' },
+    { key: 'textMessageEnabledPhone', label: 'Text Message Enabled Phone #' },
+    { key: 'receivesAutoVisitReminders', label: 'Receives automatic visit reminders?', format: formatBool },
+    { key: 'receivesAutoJobFollowups', label: 'Receives automatic job follow-ups?', format: formatBool },
+    { key: 'receivesAutoQuoteFollowups', label: 'Receives automatic quote follow-ups?', format: formatBool },
+    { key: 'receivesAutoInvoiceFollowups', label: 'Receives automatic invoice follow-ups?', format: formatBool },
+    { key: 'archived', label: 'Archived', format: formatBool },
+    { key: 'leadSource', label: 'Lead Source' },
+    { key: 'pftAddressAdditionalInfo', label: 'PFT[Address additional info]' },
+    { key: 'pftApartmentNumber', label: 'PFT[Apartment #]' },
+    { key: 'pftFootage', label: 'PFT[Footage]' },
+    { key: 'pftNotes', label: 'PFT[Notes]' },
+  ]
 
   return (
     <SidebarLayout>
-      <div className="bg-white rounded-2xl border border-[#EFEFEF] shadow-sm px-6 sm:px-8 py-6">
+      <div className="bg-white rounded-2xl border border-[#EFEFEF] shadow-sm px-6 sm:px-8 py-6 overflow-hidden h-full w-full flex flex-col min-h-0">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Clients</h1>
 
         {clients.length === 0 ? (
@@ -111,77 +143,37 @@ export default function Clients() {
             <p className="text-gray-600">No clients found.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+          <div className="bg-white rounded-lg shadow overflow-hidden flex-1 min-h-0 w-full">
+            <div className="overflow-auto max-w-full h-full w-full">
+              <table className="min-w-max w-max divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Phone
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Address
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tags
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
+                    {columns.map((column) => (
+                      <th
+                        key={column.key}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        {column.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {clients.map((client) => {
-                    const primaryEmail = client.emails?.find((e) => e.primary)?.address || client.emails?.[0]?.address
-                    const primaryPhone = client.phones?.find((p) => p.primary)?.number || client.phones?.[0]?.number
-
-                    return (
-                      <tr key={client.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{client.name}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{primaryEmail || 'N/A'}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{primaryPhone || 'N/A'}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-500">{formatAddress(client.billingAddress)}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex flex-wrap gap-1">
-                            {client.tags?.nodes?.map((tag) => (
-                              <span
-                                key={tag.id}
-                                className="px-2 py-1 text-xs rounded-full"
-                                style={{ backgroundColor: `${PINK_COLOR}20`, color: PINK_COLOR }}
-                              >
-                                {tag.label}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 text-xs rounded-full ${
-                              client.isArchived
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-green-100 text-green-800'
-                            }`}
-                          >
-                            {client.isArchived ? 'Archived' : 'Active'}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {clients.map((client) => (
+                    <tr key={client.id} className="hover:bg-gray-50">
+                      {columns.map((column) => {
+                        const rawValue = (client as any)[column.key]
+                        const value = column.format
+                          ? column.format(rawValue)
+                          : formatValue(rawValue)
+                        return (
+                          <td key={`${client.id}-${column.key}`} className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{value}</div>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

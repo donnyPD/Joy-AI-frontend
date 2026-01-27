@@ -4,29 +4,77 @@ import { fetchJobs } from './jobsApi'
 interface Job {
   id: string
   jobNumber: string
-  title: string | null
+  title: string
   jobStatus: string
-  jobType: string | null
-  createdAt: string
-  startAt: string | null
-  endAt: string | null
-  client: {
-    id: string
-    name: string
-    firstName: string | null
-    lastName: string | null
-    companyName: string | null
-  } | null
-  property: {
-    id: string
-    name: string | null
-    address: {
-      street: string | null
-      city: string | null
-      province: string | null
-      postalCode: string | null
-    } | null
-  } | null
+  jobType: string
+  createdDate: string
+  scheduleStartDate: string
+  scheduleEndDate: string
+  closedDate: string
+  startTime: string
+  endTime: string
+  clientName: string
+  clientEmail: string
+  clientPhone: string
+  leadSource: string
+  billingStreet: string
+  billingCity: string
+  billingProvince: string
+  billingZip: string
+  servicePropertyName: string
+  serviceStreet: string
+  serviceCity: string
+  serviceProvince: string
+  serviceZip: string
+  billingType: string
+  visitFrequency: string
+  billingFrequency: string
+  automaticInvoicing: string
+  visitsAssignedTo: string
+  lineItems: string
+  total: string
+  completedVisits: string
+  numberOfInvoices: string
+  salesperson: string
+  invoiceNumbers: string
+  quoteNumber: string
+  onlineBooking: string
+  expensesTotal: string
+  timeTracked: string
+  labourCostTotal: string
+  lineItemCostTotal: string
+  totalCosts: string
+  quoteDiscount: string
+  totalRevenue: string
+  profit: string
+  profitPercent: string
+  typeOfProperty: string
+  frequency: string
+  referredBy: string
+  birthdayMonth: string
+  typeOfCleaning: string
+  hours: string
+  cleaningInstructions: string
+  howToGetInTheHouse: string
+  detailToGetInTheHouse: string
+  cleanInsideOfTheStove: string
+  cleanInsideOfTheFridge: string
+  windowsToBeCleaned: string
+  glassDoorsToBeCleaned: string
+  typerOfProductsToUse: string
+  squareFoot: string
+  exactSqFt: string
+  zone: string
+  parkingDetails: string
+  responsibidProfile: string
+  preferredTimeOfContact: string
+  additionalInstructions: string
+  pets: string
+  clientsProductsNotes: string
+  trashCanInventory: string
+  changeSheets: string
+  cleaningTech: string
+  replied: string
 }
 
 interface JobsState {
@@ -63,8 +111,8 @@ const jobsSlice = createSlice({
       })
       .addCase(fetchJobs.fulfilled, (state, action) => {
         state.isLoading = false
-        state.jobs = action.payload.data.jobs.nodes
-        state.pageInfo = action.payload.data.jobs.pageInfo
+        state.jobs = action.payload.jobs
+        state.pageInfo = null // No pagination for DB queries
       })
       .addCase(fetchJobs.rejected, (state, action) => {
         state.isLoading = false
