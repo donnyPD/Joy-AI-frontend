@@ -941,8 +941,7 @@ export interface PublicInventoryFormData {
     isVisible: boolean
     isRequired: boolean
     dropdownMin: number
-    dropdownMax: number
-    dropdownMaxW2: number
+    dropdownMaxByType: Record<string, number>
     displayOrder: number
   }>
   teamMembers: Array<{

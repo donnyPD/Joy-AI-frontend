@@ -2276,6 +2276,7 @@ export default function Inventory() {
           pricePerUnit: item.pricePerUnit || null,
           idealTotalInventory: 0,
           toBeOrdered: 0,
+          totalRequested: 0,
           threshold: item.threshold || 3,
           rowNumber: item.rowNumber || null,
           preferredStore: null,

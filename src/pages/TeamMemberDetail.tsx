@@ -51,20 +51,6 @@ function formatDate(dateString: string): string {
   }
 }
 
-const monthNames = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
 
 function formatSubmissionDate(dateStr: Date | string | null): string {
   if (!dateStr) return '-'
@@ -256,7 +242,6 @@ export default function TeamMemberDetail() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear())
   const [selectedKpi, setSelectedKpi] = useState<{ type: string; name: string; isCustom?: boolean; customMetric?: CustomMetricDefinition } | null>(null)
   const [selectedNote, setSelectedNote] = useState<any | null>(null)
-  const [selectedPurchase, setSelectedPurchase] = useState<any | null>(null)
   const [selectedSubmission, setSelectedSubmission] = useState<InventoryFormSubmission | null>(null)
   const [editingSubmission, setEditingSubmission] = useState<InventoryFormSubmission | null>(null)
   const [deleteConfirmSubmission, setDeleteConfirmSubmission] = useState<InventoryFormSubmission | null>(null)
@@ -606,18 +591,6 @@ export default function TeamMemberDetail() {
     }
   }
 
-  const handleEditPurchase = (purchase: any) => {
-    setPurchaseToEdit(purchase)
-    setEditPurchaseDate(purchase.purchaseDate || '')
-    setEditPurchaseItems(purchase.itemsRaw || '')
-    setEditPurchaseCompleted(purchase.isCompleted || false)
-    setPurchaseEditDialogOpen(true)
-  }
-
-  const handleDeletePurchase = (purchaseId: string) => {
-    setPurchaseToDelete(purchaseId)
-    setPurchaseDeleteDialogOpen(true)
-  }
 
   const confirmEditPurchase = () => {
     if (purchaseToEdit && id) {
