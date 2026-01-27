@@ -13,7 +13,7 @@ import {
 } from '../features/inventory/inventoryApi'
 import { useTeamMembers } from '../features/team-members/teamMembersApi'
 import toast from 'react-hot-toast'
-import SidebarLayout from '../components/SidebarLayout'
+import Navbar from '../components/Navbar'
 
 // Helper function to get today's date in NY timezone as YYYY-MM-DD
 function getTodayNY(): string {
@@ -325,16 +325,18 @@ export default function InventoryPurchaseOrder() {
 
   if (isLoadingInventory || isLoadingStores || isLoadingCategories) {
     return (
-      <SidebarLayout>
+      <div className="min-h-screen bg-[#F7F7F9]">
+        <Navbar />
         <div className="flex items-center justify-center min-h-screen">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </SidebarLayout>
+      </div>
     )
   }
 
   return (
-    <SidebarLayout>
+    <div className="min-h-screen bg-[#F7F7F9]">
+      <Navbar />
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -733,6 +735,6 @@ export default function InventoryPurchaseOrder() {
           </div>
         </div>
       )}
-    </SidebarLayout>
+    </div>
   )
 }

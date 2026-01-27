@@ -3463,14 +3463,13 @@ function EditFormConfigDialog({
                   <div key={category.id} className="space-y-4">
                     <div className="p-3 bg-white rounded-lg border">
                       <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={category.isVisibleOnForm !== false}
-                          onChange={(e) => {
+                        <button
+                          type="button"
+                          onClick={() => {
                             updateCategoryVisibility.mutate(
                               {
                                 id: category.id,
-                                data: { isVisibleOnForm: e.target.checked },
+                                data: { isVisibleOnForm: !(category.isVisibleOnForm !== false) },
                               },
                               {
                                 onSuccess: () => {
@@ -3479,8 +3478,16 @@ function EditFormConfigDialog({
                               }
                             )
                           }}
-                          className="w-4 h-4"
-                        />
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                            category.isVisibleOnForm !== false ? 'bg-[#E91E63]' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              category.isVisibleOnForm !== false ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
                         <span className="text-sm font-medium">
                           Show "{category.name}" category on public form
                         </span>
@@ -3514,28 +3521,42 @@ function EditFormConfigDialog({
                               <tr key={item.id} className="border-b border-gray-100">
                                 <td className="p-2 text-sm font-medium">{item.name}</td>
                                 <td className="p-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={config.isVisible}
-                                    onChange={(e) =>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
                                       updateConfig(category.name, item.name, {
-                                        isVisible: e.target.checked,
+                                        isVisible: !config.isVisible,
                                       })
                                     }
-                                    className="w-4 h-4"
-                                  />
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                                      config.isVisible ? 'bg-[#E91E63]' : 'bg-gray-300'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        config.isVisible ? 'translate-x-6' : 'translate-x-1'
+                                      }`}
+                                    />
+                                  </button>
                                 </td>
                                 <td className="p-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={config.isRequired}
-                                    onChange={(e) =>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
                                       updateConfig(category.name, item.name, {
-                                        isRequired: e.target.checked,
+                                        isRequired: !config.isRequired,
                                       })
                                     }
-                                    className="w-4 h-4"
-                                  />
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                                      config.isRequired ? 'bg-[#E91E63]' : 'bg-gray-300'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        config.isRequired ? 'translate-x-6' : 'translate-x-1'
+                                      }`}
+                                    />
+                                  </button>
                                 </td>
                                 <td className="p-2 text-center">
                                   <input

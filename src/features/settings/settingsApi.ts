@@ -10,6 +10,10 @@ export interface DefaultIdealInventoryResponse {
   value: number
 }
 
+export interface ColumnDescriptionResponse {
+  value: string | null
+}
+
 // Fetch notification message template
 export function useNotificationMessage() {
   return useQuery<NotificationMessageResponse>({
@@ -67,6 +71,99 @@ export function useUpdateDefaultIdealInventory() {
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || error.message || 'Failed to save default ideal inventory'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Fetch inventory column description
+export function useInventoryColumnDescription() {
+  return useQuery<ColumnDescriptionResponse>({
+    queryKey: ['/settings/inventory/column-descriptions/inventory'],
+    queryFn: async () => {
+      const response = await api.get<ColumnDescriptionResponse>('/settings/inventory/column-descriptions/inventory')
+      return response.data
+    },
+  })
+}
+
+// Update inventory column description mutation
+export function useUpdateInventoryColumnDescription() {
+  const queryClient = useQueryClient()
+
+  return useMutation<ColumnDescriptionResponse, Error, string | null>({
+    mutationFn: async (value) => {
+      const response = await api.put<ColumnDescriptionResponse>('/settings/inventory/column-descriptions/inventory', { value })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/settings/inventory/column-descriptions/inventory'] })
+      toast.success('Inventory column description saved successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save inventory column description'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Fetch ideal inventory column description
+export function useIdealInventoryColumnDescription() {
+  return useQuery<ColumnDescriptionResponse>({
+    queryKey: ['/settings/inventory/column-descriptions/ideal-inventory'],
+    queryFn: async () => {
+      const response = await api.get<ColumnDescriptionResponse>('/settings/inventory/column-descriptions/ideal-inventory')
+      return response.data
+    },
+  })
+}
+
+// Update ideal inventory column description mutation
+export function useUpdateIdealInventoryColumnDescription() {
+  const queryClient = useQueryClient()
+
+  return useMutation<ColumnDescriptionResponse, Error, string | null>({
+    mutationFn: async (value) => {
+      const response = await api.put<ColumnDescriptionResponse>('/settings/inventory/column-descriptions/ideal-inventory', { value })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/settings/inventory/column-descriptions/ideal-inventory'] })
+      toast.success('Ideal inventory column description saved successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save ideal inventory column description'
+      toast.error(errorMessage)
+    },
+  })
+}
+
+// Fetch to be ordered column description
+export function useToBeOrderedColumnDescription() {
+  return useQuery<ColumnDescriptionResponse>({
+    queryKey: ['/settings/inventory/column-descriptions/to-be-ordered'],
+    queryFn: async () => {
+      const response = await api.get<ColumnDescriptionResponse>('/settings/inventory/column-descriptions/to-be-ordered')
+      return response.data
+    },
+  })
+}
+
+// Update to be ordered column description mutation
+export function useUpdateToBeOrderedColumnDescription() {
+  const queryClient = useQueryClient()
+
+  return useMutation<ColumnDescriptionResponse, Error, string | null>({
+    mutationFn: async (value) => {
+      const response = await api.put<ColumnDescriptionResponse>('/settings/inventory/column-descriptions/to-be-ordered', { value })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/settings/inventory/column-descriptions/to-be-ordered'] })
+      toast.success('To be ordered column description saved successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save to be ordered column description'
       toast.error(errorMessage)
     },
   })
