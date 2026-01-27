@@ -2717,35 +2717,35 @@ export default function Inventory() {
                     </div>
 
                     {isExpanded && (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                   <table className="w-full">
-                    <thead className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+                    <thead className="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-sm">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 bg-white">
                           Item Name
                         </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                           Preferred Supplier
                         </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                           Inventory
                         </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                           Ideal Inventory
                         </th>
-                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                           To Be Ordered
                         </th>
                         {columnDefinitions
                           .filter(col => col.isVisible)
                           .sort((a, b) => a.displayOrder - b.displayOrder)
                           .map((col) => (
-                            <th key={col.id} className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                            <th key={col.id} className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                               {col.columnLabel}
                             </th>
                           ))}
                         {isCurrentMonth && (
-                          <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                          <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-white">
                             Actions
                           </th>
                         )}
