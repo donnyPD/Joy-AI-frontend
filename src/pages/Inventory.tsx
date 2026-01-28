@@ -321,19 +321,37 @@ function SupplierOrderHistoryTable({
   }, [purchases])
 
   const handleEditOrder = (order: typeof groupedOrders[0]) => {
-    // Convert date string to YYYY-MM-DD format for date input
+    // Parse date string to YYYY-MM-DD format without timezone conversion
     const formatDateForInput = (dateString: string): string => {
       if (!dateString) return ''
-      try {
-        const date = new Date(dateString)
-        if (isNaN(date.getTime())) return ''
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const day = String(date.getDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
-      } catch {
-        return ''
+      
+      // If already in YYYY-MM-DD format, validate and return as-is
+      const yyyyMmDdPattern = /^\d{4}-\d{2}-\d{2}$/
+      if (yyyyMmDdPattern.test(dateString)) {
+        // Validate the date parts
+        const [year, month, day] = dateString.split('-').map(Number)
+        if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return dateString
+        }
       }
+      
+      // For ISO timestamps, extract YYYY-MM-DD directly from string (no timezone conversion)
+      try {
+        // ISO format: YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DDTHH:mm:ssZ
+        const isoMatch = dateString.match(/^(\d{4}-\d{2}-\d{2})/)
+        if (isoMatch) {
+          const extractedDate = isoMatch[1]
+          // Validate the extracted date
+          const [year, month, day] = extractedDate.split('-').map(Number)
+          if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            return extractedDate
+          }
+        }
+      } catch {
+        // Fall through to empty return
+      }
+      
+      return ''
     }
 
     setEditFormData({
@@ -354,16 +372,22 @@ function SupplierOrderHistoryTable({
     if (!editingOrder) return
 
     try {
-      // Convert date from YYYY-MM-DD format to ISO string
+      // Return YYYY-MM-DD string directly (matching getTodayNY format)
+      // Validate and return the date string as-is, or use today's date if invalid
       const formatDateForAPI = (dateString: string): string => {
-        if (!dateString) return new Date().toISOString()
-        try {
-          const date = new Date(dateString)
-          if (isNaN(date.getTime())) return new Date().toISOString()
-          return date.toISOString()
-        } catch {
-          return new Date().toISOString()
+        if (!dateString) return getTodayNY()
+        
+        // Validate YYYY-MM-DD format
+        const yyyyMmDdPattern = /^\d{4}-\d{2}-\d{2}$/
+        if (yyyyMmDdPattern.test(dateString)) {
+          const [year, month, day] = dateString.split('-').map(Number)
+          if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            return dateString
+          }
         }
+        
+        // If invalid, return today's date in YYYY-MM-DD format
+        return getTodayNY()
       }
 
       for (const item of editFormData.items) {
@@ -1691,12 +1715,24 @@ function InventoryRequestedSection() {
                     checked={selectedSubmission.delivered || false}
                     onChange={(e) => {
                       const newDelivered = e.target.checked
+                      // Capture previous state for rollback on error
+                      const previousSelected = selectedSubmission
                       // Optimistically update the UI
                       setSelectedSubmission({ ...selectedSubmission, delivered: newDelivered })
-                      updateSubmissionMutation.mutate({
-                        id: selectedSubmission.id,
-                        data: { delivered: newDelivered },
-                      })
+                      updateSubmissionMutation.mutate(
+                        {
+                          id: selectedSubmission.id,
+                          data: { delivered: newDelivered },
+                        },
+                        {
+                          onError: (error) => {
+                            // Roll back to previous state on error
+                            setSelectedSubmission(previousSelected)
+                            toast.error('Failed to update delivery status. Please try again.')
+                            console.error('Error updating submission:', error)
+                          },
+                        }
+                      )
                     }}
                     disabled={updateSubmissionMutation.isPending}
                     className="w-4 h-4 text-[#E91E63] border-gray-300 rounded focus:ring-[#E91E63] focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"

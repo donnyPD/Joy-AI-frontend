@@ -562,7 +562,7 @@ export default function InventoryPurchaseOrder() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Inventory Purchase Order</h1>
-            <p className="text-muted mt-2  text-gray-4s00">Add new purchase orders for Inventory items</p>
+            <p className="text-muted mt-2">Add new purchase orders for Inventory items</p>
           </div>
           <button
             onClick={handleGoBack}
