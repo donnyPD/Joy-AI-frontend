@@ -91,6 +91,7 @@ export interface InventoryPurchase {
   quantity: number
   purchasedAt: string
   notes?: string | null
+  totalPrice?: string | null
   createdAt: string
 }
 
@@ -114,6 +115,7 @@ export interface CreateInventoryItemData {
   pricePerUnit?: string
   threshold?: number
   idealTotalInventory?: number
+  preferredStore?: string
 }
 
 export interface UpdateInventoryItemData {
@@ -590,6 +592,7 @@ export interface CreateInventoryPurchaseData {
   quantity?: number
   purchasedAt: string
   notes?: string | null
+  totalPrice?: string | null
 }
 
 export function useCreateInventoryPurchases() {

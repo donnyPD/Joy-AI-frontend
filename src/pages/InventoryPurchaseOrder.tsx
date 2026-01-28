@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, Check, Loader2, Calendar, Upload } from 'lucide-react'
 import {
@@ -8,6 +8,7 @@ import {
   useCreateInventoryStore,
   useDeleteInventoryStore,
   useCreateInventoryPurchases,
+  useCreateInventoryItem,
   type Inventory as InventoryType,
   type InventoryStore,
 } from '../features/inventory/inventoryApi'
@@ -31,6 +32,7 @@ interface RowData {
   selectedStore: string | null
   quantity: string
   unitPrice: string
+  categoryId?: string | null  // For custom items
 }
 
 export default function InventoryPurchaseOrder() {
@@ -41,6 +43,7 @@ export default function InventoryPurchaseOrder() {
   const [rowData, setRowData] = useState<Record<string, RowData>>({})
   const [tax, setTax] = useState('')
   const [shipping, setShipping] = useState('')
+  const [promotion, setPromotion] = useState('')
   const [notes, setNotes] = useState('')
   const [showNewStoreInput, setShowNewStoreInput] = useState(false)
   const [newStoreName, setNewStoreName] = useState('')
@@ -51,6 +54,8 @@ export default function InventoryPurchaseOrder() {
   const [extractedOrderId, setExtractedOrderId] = useState<string | null>(null)
   const [hasUploadedPDF, setHasUploadedPDF] = useState(false)
   const [supplierNotFoundInList, setSupplierNotFoundInList] = useState(false)
+  const [isCreatingItems, setIsCreatingItems] = useState(false)
+  const hasDefaultedSupplier = useRef(false)
 
   const { data: inventoryItems = [], isLoading: isLoadingInventory } = useInventory()
   const { data: stores = [], isLoading: isLoadingStores } = useInventoryStores()
@@ -58,6 +63,7 @@ export default function InventoryPurchaseOrder() {
   const createStoreMutation = useCreateInventoryStore()
   const deleteStoreMutation = useDeleteInventoryStore()
   const createPurchasesMutation = useCreateInventoryPurchases()
+  const createInventoryItemMutation = useCreateInventoryItem()
 
   useEffect(() => {
     if (inventoryItems.length > 0 && !hasUploadedPDF) {
@@ -96,6 +102,14 @@ export default function InventoryPurchaseOrder() {
     })
   }, [globalStore, hasUploadedPDF])
 
+  // Default to first supplier when page opens (skip if PDF uploaded or user cleared)
+  useEffect(() => {
+    if (stores.length > 0 && !globalStore && !hasUploadedPDF && !hasDefaultedSupplier.current) {
+      hasDefaultedSupplier.current = true
+      setGlobalStore(stores[0].name)
+    }
+  }, [stores, globalStore, hasUploadedPDF])
+
   const handleQtyChange = (itemId: string, value: string) => {
     setRowData((prev) => ({
       ...prev,
@@ -107,6 +121,13 @@ export default function InventoryPurchaseOrder() {
     setRowData((prev) => ({
       ...prev,
       [itemId]: { ...prev[itemId], unitPrice: value },
+    }))
+  }
+
+  const handleCategoryChange = (itemKey: string, categoryId: string) => {
+    setRowData((prev) => ({
+      ...prev,
+      [itemKey]: { ...prev[itemKey], categoryId },
     }))
   }
 
@@ -129,7 +150,8 @@ export default function InventoryPurchaseOrder() {
     const subtotal = calculateSubtotal()
     const taxAmount = parseFloat(tax) || 0
     const shippingAmount = parseFloat(shipping) || 0
-    return subtotal + taxAmount + shippingAmount
+    const promotionAmount = parseFloat(promotion) || 0
+    return subtotal + taxAmount + shippingAmount + promotionAmount
   }
 
   const handleAddNewStore = () => {
@@ -184,90 +206,20 @@ export default function InventoryPurchaseOrder() {
 
     setIsProcessingPDF(true)
     const formData = new FormData()
-    formData.append('file', file)
+    // Use 'invoice' field name to match n8n webhook API
+    formData.append('invoice', file)
 
     try {
-      // Get API URL from environment variable, fallback to mock data
-      const pdfApiUrl = import.meta.env.VITE_PDF_PARSER_API_URL
+      // Call n8n invoice extraction webhook
+      const n8nWebhookUrl = 'https://automate-staging.automatejoy.ai/webhook/extract-invoice'
       
-      // For testing: Use mock data instead of actual API call
-      const useMockData = !pdfApiUrl
+      const response = await axios.post(n8nWebhookUrl, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
       
-      let extractedData: any
-      
-      if (useMockData) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        
-        // Return fixed mock JSON data for testing
-        // Mix of items: some matching inventory, some custom items
-        const mockItems: Array<{ name: string; quantity: number; unitPrice: number }> = []
-        
-        // Add items from inventory (if available)
-        // if (inventoryItems.length >= 2) {
-        //   mockItems.push(
-        //     {
-        //       name: inventoryItems[0].name,
-        //       quantity: 5,
-        //       unitPrice: 10.99
-        //     },
-        //     {
-        //       name: inventoryItems[1].name,
-        //       quantity: 10,
-        //       unitPrice: 21.98
-        //     }
-        //   )
-        // } else if (inventoryItems.length === 1) {
-        //   mockItems.push({
-        //     name: inventoryItems[0].name,
-        //     quantity: 5,
-        //     unitPrice: 10.99
-        //   })
-        // }
-        
-        // Add custom items (not in inventory) to test custom items feature
-        mockItems.push(
-          {
-            name: 'Custom Item from PDF - Not in Inventory',
-            quantity: 15,
-            unitPrice: 32.97
-          },
-          {
-            name: 'Another Custom 5544',
-            quantity: 8,
-            unitPrice: 15.50
-          },
-           {
-            name: 'Another Custom 435',
-            quantity: 8,
-            unitPrice: 15.50
-          },
-           {
-            name: 'Another Custom 32',
-            quantity: 8,
-            unitPrice: 15.50
-          }
-        )
-        console.log('📦 Mock items:', mockItems)
-        
-        extractedData = {
-          orderId: '123-4567890-123467',
-          date: '2026-01-29',
-          supplier: 'Flipkart',
-          items: mockItems,
-          tax: 12.50,
-          shipping: 8.99,
-          notes: 'Mock PDF data - Replace with actual n8n endpoint for production use.'
-        }
-      } else {
-        // Actual API call to n8n webhook
-        const response = await axios.post(pdfApiUrl, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        })
-        extractedData = response.data
-      }
+      const extractedData = response.data
       
       // Populate form with extracted data
       populateFormFromPDF(extractedData)
@@ -276,7 +228,11 @@ export default function InventoryPurchaseOrder() {
       toast.success('PDF processed successfully! Form fields populated.')
     } catch (error: any) {
       console.error('PDF processing error:', error)
-      toast.error(error.response?.data?.message || 'Failed to process PDF. Please try again.')
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Failed to process PDF. Please try again.'
+      toast.error(errorMessage)
     } finally {
       setIsProcessingPDF(false)
       // Reset file input
@@ -304,7 +260,20 @@ export default function InventoryPurchaseOrder() {
       } else {
         setGlobalStore(data.supplier)
         setSupplierNotFoundInList(true)
-        // toast(`Supplier "${data.supplier}" not found. Please add it manually.`, { icon: 'ℹ️' })
+        // Auto-create supplier if it doesn't exist
+        createStoreMutation.mutate(
+          { name: data.supplier },
+          {
+            onSuccess: () => {
+              setSupplierNotFoundInList(false)
+              toast.success(`Supplier "${data.supplier}" created automatically`)
+            },
+            onError: (error: any) => {
+              const errorMessage = error.response?.data?.message || error.message || 'Failed to create supplier'
+              toast.error(`Could not auto-create supplier: ${errorMessage}`)
+            },
+          }
+        )
       }
     }
 
@@ -314,6 +283,11 @@ export default function InventoryPurchaseOrder() {
     }
     if (data.shipping !== undefined && data.shipping !== null) {
       setShipping(String(data.shipping))
+    }
+
+    // Set promotion
+    if (data.promotion !== undefined && data.promotion !== null) {
+      setPromotion(String(data.promotion))
     }
 
     // Set notes
@@ -368,6 +342,7 @@ export default function InventoryPurchaseOrder() {
               selectedStore: null,
               quantity: String(item.quantity || ''),
               unitPrice: String(item.unitPrice || ''),
+              categoryId: null, // Category will be selected by user
             }
           }
         })
@@ -378,8 +353,64 @@ export default function InventoryPurchaseOrder() {
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const orderId = extractedOrderId || generateOrderId()
+    
+    // First, create inventory items for custom items with selected categories
+    const customItemsToCreate = Object.entries(rowData).filter(
+      ([key, row]) => key.startsWith('custom-') && row.itemId === null && row.categoryId
+    )
+
+    // Create inventory items for custom items with categories
+    setIsCreatingItems(customItemsToCreate.length > 0)
+    const createdItemIds: Record<string, string> = {}
+    for (const [key, row] of customItemsToCreate) {
+      try {
+        // Get effective store: per-item store if set, otherwise global store
+        const effectiveStore: string = (row.selectedStore && row.selectedStore.trim() !== '') 
+          ? row.selectedStore 
+          : (globalStore && globalStore.trim() !== '' ? globalStore : '')
+        
+        const newItem = await new Promise<InventoryType>((resolve, reject) => {
+          createInventoryItemMutation.mutate(
+            {
+              name: row.itemName,
+              type: 'Product',
+              categoryId: row.categoryId!,
+              totalInventory: 0,
+              pricePerUnit: row.unitPrice || undefined,
+              threshold: 0,
+              idealTotalInventory: 0,
+              preferredStore: effectiveStore || undefined,
+            },
+            {
+              onSuccess: (data) => resolve(data),
+              onError: (error) => reject(error),
+            }
+          )
+        })
+        createdItemIds[key] = newItem.id
+        // Update rowData with the new itemId
+        setRowData((prev) => ({
+          ...prev,
+          [key]: { ...prev[key], itemId: newItem.id },
+        }))
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to create inventory item'
+        toast.error(`Failed to create item "${row.itemName}": ${errorMessage}`)
+        // Continue with other items even if one fails
+      }
+    }
+    setIsCreatingItems(false)
+
+    // Build updated rowData with newly created itemIds
+    const updatedRowData = { ...rowData }
+    Object.keys(createdItemIds).forEach((key) => {
+      if (updatedRowData[key]) {
+        updatedRowData[key] = { ...updatedRowData[key], itemId: createdItemIds[key] }
+      }
+    })
+
     const purchases: {
       orderId: string
       itemId: string | null
@@ -393,7 +424,9 @@ export default function InventoryPurchaseOrder() {
 
     const validationErrors: string[] = []
 
-    Object.values(rowData).forEach((row) => {
+    Object.entries(updatedRowData).forEach(([key, row]) => {
+      // Use created itemId if this was a custom item that was just created
+      const effectiveItemId = createdItemIds[key] || row.itemId
       // Get effective store: per-item store if set, otherwise global store
       const effectiveStore: string = (row.selectedStore && row.selectedStore.trim() !== '') 
         ? row.selectedStore 
@@ -427,7 +460,7 @@ export default function InventoryPurchaseOrder() {
           const totalAmount = parsedQty * parsedPrice
           purchases.push({
             orderId,
-            itemId: row.itemId,
+            itemId: effectiveItemId,
             itemName: row.itemName,
             orderedFrom: effectiveStore,
             amount: totalAmount.toFixed(2),
@@ -452,8 +485,17 @@ export default function InventoryPurchaseOrder() {
       return
     }
 
+    // Calculate grand total for the order
+    const grandTotal = calculateGrandTotal()
+
+    // Add totalPrice to all purchases (same for all items in the order)
+    const purchasesWithTotal = purchases.map(p => ({
+      ...p,
+      totalPrice: grandTotal.toFixed(2),
+    }))
+
     createPurchasesMutation.mutate(
-      { purchases },
+      { purchases: purchasesWithTotal },
       {
         onSuccess: () => {
           setShowSuccessDialog(true)
@@ -475,6 +517,7 @@ export default function InventoryPurchaseOrder() {
     setGlobalStore('')
     setTax('')
     setShipping('')
+    setPromotion('')
     setNotes('')
     setExtractedOrderId(null)
     setHasUploadedPDF(false)
@@ -505,19 +548,25 @@ export default function InventoryPurchaseOrder() {
   const grandTotal = calculateGrandTotal()
 
   const groupedInventoryItems = useMemo(() => {
-    // If PDF was uploaded, return empty - we'll only show PDF items
-    if (hasUploadedPDF) {
-      return {}
-    }
-    
+    // Always show all inventory items, even when PDF is uploaded
     // Create a map of categoryId to category name
     const categoryMap = new Map<string, string>()
     categories.forEach((cat) => categoryMap.set(cat.id, cat.name))
 
+    // Get item IDs that are in rowData (items with data entered or matched from PDF)
+    const itemsInRowData = new Set(
+      Object.keys(rowData)
+        .filter((key) => !key.startsWith('custom-') && rowData[key].itemId)
+        .map((key) => rowData[key].itemId)
+    )
+
     // Filter items by selected store's preferred store field
+    // BUT also include items that are in rowData (matched from PDF or have data)
     const filteredItems = globalStore
       ? inventoryItems.filter(
-          (item) => item.preferredStore?.toLowerCase() === globalStore.toLowerCase()
+          (item) => 
+            item.preferredStore?.toLowerCase() === globalStore.toLowerCase() ||
+            itemsInRowData.has(item.id)
         )
       : inventoryItems
 
@@ -535,7 +584,7 @@ export default function InventoryPurchaseOrder() {
     })
 
     return grouped
-  }, [inventoryItems, categories, globalStore, hasUploadedPDF])
+  }, [inventoryItems, categories, globalStore, rowData])
 
   // Get custom items (items from PDF that are not in inventory)
   const customItems = useMemo(() => {
@@ -594,33 +643,6 @@ export default function InventoryPurchaseOrder() {
               </div>
 
               <div className="flex items-center gap-2">
-                <label className="font-semibold text-gray-900 whitespace-nowrap">Upload PDF</label>
-                <label className="relative cursor-pointer">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handlePDFUpload}
-                    disabled={isProcessingPDF}
-                    className="hidden"
-                    id="pdf-upload-input"
-                  />
-                  <span className={`px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 bg-white ${isProcessingPDF ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                    {isProcessingPDF ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4" />
-                        Upload PDF
-                      </>
-                    )}
-                  </span>
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2">
                 <label className="font-semibold text-gray-900 whitespace-nowrap">
                   Choose supplier
                 </label>
@@ -666,6 +688,35 @@ export default function InventoryPurchaseOrder() {
                   </button>
                 )}
               </div>
+
+              <div className="flex items-center gap-2">
+                <label className="font-semibold text-gray-900 whitespace-nowrap">AI Autofill</label>
+                <label className="relative cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handlePDFUpload}
+                    disabled={isProcessingPDF}
+                    className="hidden"
+                    id="pdf-upload-input"
+                  />
+                  <span className={`px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 bg-white ${isProcessingPDF ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    {isProcessingPDF ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Upload PDF
+                      </>
+                    )}
+                  </span>
+                </label>
+              </div>
+
+              
             </div>
           </div>
 
@@ -692,6 +743,75 @@ export default function InventoryPurchaseOrder() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Custom Items Section - Items from PDF not in inventory - RENDERED FIRST */}
+                  {customItems.length > 0 && (
+                    <>
+                      <tr key="category-custom">
+                        <td
+                          colSpan={5}
+                          className="font-semibold text-sm text-white py-2 px-4 text-left border-b"
+                          style={{ backgroundColor: '#7f8a9f' }}
+                        >
+                          Custom Items (from PDF)
+                        </td>
+                      </tr>
+                      {customItems.map((customItem) => {
+                        const row = rowData[customItem.key] || customItem
+                        const rowTotal = calculateRowTotal(row as RowData)
+
+                        return (
+                          <tr key={customItem.key}>
+                            <td className="font-medium text-gray-900 text-sm pl-6 py-3 border-b">
+                              <div className="flex flex-col gap-2">
+                                <span>{row.itemName}</span>
+                                <select
+                                  value={row.categoryId || ''}
+                                  onChange={(e) => handleCategoryChange(customItem.key, e.target.value)}
+                                  className="w-full max-w-[200px] text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
+                                >
+                                  <option value="">Select category...</option>
+                                  {categories.map((cat) => (
+                                    <option key={cat.id} value={cat.id}>
+                                      {cat.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </td>
+                            <td className="text-center text-sm py-3 border-b">
+                              -
+                            </td>
+                            <td className="text-center py-3 border-b">
+                              <input
+                                type="number"
+                                min="0"
+                                value={row.quantity || ''}
+                                onChange={(e) => handleQtyChange(customItem.key, e.target.value)}
+                                className="w-[70px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="text-center py-3 border-b">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={row.unitPrice || ''}
+                                onChange={(e) => handlePriceChange(customItem.key, e.target.value)}
+                                className="w-[80px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
+                                placeholder="$0.00"
+                              />
+                            </td>
+                            <td className="text-center font-medium py-3 border-b">
+                              {rowTotal > 0 ? `$${rowTotal.toFixed(2)}` : '-'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </>
+                  )}
+
+                  {/* All Inventory Items - RENDERED AFTER CUSTOM ITEMS */}
                   {Object.keys(groupedInventoryItems).length === 0 && globalStore ? (
                     <tr>
                       <td colSpan={5} className="text-center py-8 text-gray-500">
@@ -761,60 +881,6 @@ export default function InventoryPurchaseOrder() {
                       </>
                     ))
                   )}
-                  
-                  {/* Custom Items Section - Items from PDF not in inventory */}
-                  {customItems.length > 0 && (
-                    <>
-                      <tr key="category-custom">
-                        <td
-                          colSpan={5}
-                          className="font-semibold text-sm text-white py-2 px-4 text-left border-b"
-                          style={{ backgroundColor: '#7f8a9f' }}
-                        >
-                          Custom Items (from PDF)
-                        </td>
-                      </tr>
-                      {customItems.map((customItem) => {
-                        const row = rowData[customItem.key] || customItem
-                        const rowTotal = calculateRowTotal(row as RowData)
-
-                        return (
-                          <tr key={customItem.key}>
-                            <td className="font-medium text-gray-900 text-sm pl-6 py-3 border-b">
-                              {row.itemName}
-                            </td>
-                            <td className="text-center text-sm py-3 border-b">
-                              -
-                            </td>
-                            <td className="text-center py-3 border-b">
-                              <input
-                                type="number"
-                                min="0"
-                                value={row.quantity || ''}
-                                onChange={(e) => handleQtyChange(customItem.key, e.target.value)}
-                                className="w-[70px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
-                                placeholder="0"
-                              />
-                            </td>
-                            <td className="text-center py-3 border-b">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={row.unitPrice || ''}
-                                onChange={(e) => handlePriceChange(customItem.key, e.target.value)}
-                                className="w-[80px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
-                                placeholder="$0.00"
-                              />
-                            </td>
-                            <td className="text-center font-medium py-3 border-b">
-                              {rowTotal > 0 ? `$${rowTotal.toFixed(2)}` : '-'}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </>
-                  )}
                 </tbody>
               </table>
             </div>
@@ -822,14 +888,14 @@ export default function InventoryPurchaseOrder() {
             <div className="border-t px-6 py-4">
               <div className="flex flex-col lg:flex-row gap-4">
                 {/* Notes Section - Left Side */}
-                <div className="max-w-[500px]">
+                <div className="flex-2 lg:w-1/3">
                   <label className="block font-semibold text-gray-900 mb-2">Notes</label>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Add any additional notes about this purchase order..."
                     rows={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] resize-y"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] resize-none"
                   />
                 </div>
 
@@ -863,6 +929,18 @@ export default function InventoryPurchaseOrder() {
                       placeholder="0.00"
                     />
                   </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <label className="font-semibold whitespace-nowrap">PROMOTION ($)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={promotion}
+                      onChange={(e) => setPromotion(e.target.value)}
+                      className="w-[100px] text-right px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                      placeholder="0.00"
+                    />
+                  </div>
                   <div className="flex items-center justify-between border-t pt-3">
                     <label className="font-bold text-lg">GRAND TOTAL ($)</label>
                     <span className="font-bold text-xl text-[#E91E63]">${grandTotal.toFixed(2)}</span>
@@ -881,13 +959,13 @@ export default function InventoryPurchaseOrder() {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={createPurchasesMutation.isPending}
+              disabled={createPurchasesMutation.isPending || isCreatingItems}
               className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
             >
-              {createPurchasesMutation.isPending ? (
+              {createPurchasesMutation.isPending || isCreatingItems ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Submitting...
+                  {isCreatingItems ? 'Creating items...' : 'Submitting...'}
                 </>
               ) : (
                 <>

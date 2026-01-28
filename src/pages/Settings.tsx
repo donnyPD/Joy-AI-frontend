@@ -788,7 +788,7 @@ export default function Settings() {
                         >
                           <div className="flex items-center gap-2">
                             <Sliders className="h-4 w-4" />
-                            <span>Custom Fields</span>
+                            <span>Inventory Item Custom Fields</span>
                           </div>
                         </button>
                       </div>
@@ -807,7 +807,7 @@ export default function Settings() {
                         >
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
-                            <span>Form Configuration</span>
+                            <span>Order Inventory Form</span>
                           </div>
                         </button>
                       </div>
@@ -826,7 +826,7 @@ export default function Settings() {
                         >
                           <div className="flex items-center gap-2">
                             <Sliders className="h-4 w-4" />
-                            <span>Default Values</span>
+                            <span>Fields Definitions</span>
                           </div>
                         </button>
                       </div>

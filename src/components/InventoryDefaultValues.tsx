@@ -11,7 +11,7 @@ export default function InventoryDefaultValues() {
             <Info className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-1">Default Values</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-1">Fields Definitions</h2>
             <p className="text-sm text-gray-600">
               Learn about the usage and purpose of the Inventory, Ideal Inventory, and To Be Ordered fields.
             </p>
