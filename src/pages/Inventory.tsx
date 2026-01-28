@@ -49,7 +49,7 @@ import api from '../services/api'
 import toast from 'react-hot-toast'
 import { useTeamMemberTypes } from '../features/team-member-options/teamMemberOptionsApi'
 import { useDefaultIdealInventory } from '../features/settings/settingsApi'
-import { Pencil, Trash2, Eye, Plus, Download, ShoppingCart, StickyNote, Store, Package, X, Settings, Home, Check, Loader2, ExternalLink, ChevronDown, ChevronRight, AlignJustify, Calendar, DollarSign } from 'lucide-react'
+import { Pencil, Trash2, Eye, Plus, Download, ShoppingCart, StickyNote, Store, Package, X, Settings, Home, Check, Loader2, ExternalLink, ChevronDown, ChevronRight, AlignJustify, Calendar, DollarSign, Droplet } from 'lucide-react'
 
 const monthNames = [
   'January',
@@ -236,8 +236,9 @@ function SupplierOrderHistoryTable({
   const [editFormData, setEditFormData] = useState<{
     date: string
     store: string
+    notes: string
     items: { id: string; itemName: string; amount: string; quantity: number }[]
-  }>({ date: '', store: '', items: [] })
+  }>({ date: '', store: '', notes: '', items: [] })
 
   const { data: purchases = [], isLoading, refetch } = useInventoryPurchases(selectedMonth, selectedYear)
   const { data: availableMonths = [] } = useInventoryPurchasesAvailableMonths()
@@ -320,9 +321,43 @@ function SupplierOrderHistoryTable({
   }, [purchases])
 
   const handleEditOrder = (order: typeof groupedOrders[0]) => {
+    // Parse date string to YYYY-MM-DD format without timezone conversion
+    const formatDateForInput = (dateString: string): string => {
+      if (!dateString) return ''
+      
+      // If already in YYYY-MM-DD format, validate and return as-is
+      const yyyyMmDdPattern = /^\d{4}-\d{2}-\d{2}$/
+      if (yyyyMmDdPattern.test(dateString)) {
+        // Validate the date parts
+        const [year, month, day] = dateString.split('-').map(Number)
+        if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return dateString
+        }
+      }
+      
+      // For ISO timestamps, extract YYYY-MM-DD directly from string (no timezone conversion)
+      try {
+        // ISO format: YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DDTHH:mm:ssZ
+        const isoMatch = dateString.match(/^(\d{4}-\d{2}-\d{2})/)
+        if (isoMatch) {
+          const extractedDate = isoMatch[1]
+          // Validate the extracted date
+          const [year, month, day] = extractedDate.split('-').map(Number)
+          if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            return extractedDate
+          }
+        }
+      } catch {
+        // Fall through to empty return
+      }
+      
+      return ''
+    }
+
     setEditFormData({
-      date: order.date,
+      date: formatDateForInput(order.date),
       store: order.store,
+      notes: order.items[0]?.notes || '',
       items: order.items.map((item) => ({
         id: item.id,
         itemName: item.itemName,
@@ -337,15 +372,34 @@ function SupplierOrderHistoryTable({
     if (!editingOrder) return
 
     try {
+      // Return YYYY-MM-DD string directly (matching getTodayNY format)
+      // Validate and return the date string as-is, or use today's date if invalid
+      const formatDateForAPI = (dateString: string): string => {
+        if (!dateString) return getTodayNY()
+        
+        // Validate YYYY-MM-DD format
+        const yyyyMmDdPattern = /^\d{4}-\d{2}-\d{2}$/
+        if (yyyyMmDdPattern.test(dateString)) {
+          const [year, month, day] = dateString.split('-').map(Number)
+          if (year >= 1900 && year <= 2100 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            return dateString
+          }
+        }
+        
+        // If invalid, return today's date in YYYY-MM-DD format
+        return getTodayNY()
+      }
+
       for (const item of editFormData.items) {
         await updatePurchaseMutation.mutateAsync({
           id: item.id,
           data: {
-            purchasedAt: editFormData.date,
+            purchasedAt: formatDateForAPI(editFormData.date),
             orderedFrom: editFormData.store,
             itemName: item.itemName,
             amount: item.amount,
             quantity: item.quantity,
+            notes: editFormData.notes || null,
           },
         })
       }
@@ -376,7 +430,7 @@ function SupplierOrderHistoryTable({
       return
     }
 
-    const headers = ['Order ID', 'Date', 'Supplier', 'Item Name', 'Amount', 'Quantity']
+    const headers = ['Order ID', 'Date', 'Supplier', 'Item Name', 'Amount', 'Quantity', 'Notes']
     const rows = purchases.map((p) => [
       p.orderId || `LEGACY-${p.id}`,
       p.purchasedAt,
@@ -384,6 +438,7 @@ function SupplierOrderHistoryTable({
       p.itemName,
       p.amount,
       String(p.quantity),
+      p.notes || '',
     ])
 
     const csvContent = [
@@ -557,6 +612,12 @@ function SupplierOrderHistoryTable({
                   ))}
                 </tbody>
               </table>
+              {viewOrderItems.items[0]?.notes && (
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="font-medium mb-2 text-sm text-gray-700">Notes:</h4>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{viewOrderItems.items[0].notes}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -577,7 +638,7 @@ function SupplierOrderHistoryTable({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                   <input
-                    type="text"
+                    type="date"
                     value={editFormData.date}
                     onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
@@ -590,6 +651,16 @@ function SupplierOrderHistoryTable({
                     value={editFormData.store}
                     onChange={(e) => setEditFormData({ ...editFormData, store: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    value={editFormData.notes}
+                    onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                    placeholder="Add any additional notes about this purchase order..."
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none resize-y"
                   />
                 </div>
                 <div>
@@ -1634,9 +1705,41 @@ function InventoryRequestedSection() {
               </button>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
-              <p className="text-sm text-gray-600 mb-4">
-                Submitted on {formatDate(selectedSubmission.createdAt)}
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-gray-600">
+                  Submitted on {formatDate(selectedSubmission.createdAt)}
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedSubmission.delivered || false}
+                    onChange={(e) => {
+                      const newDelivered = e.target.checked
+                      // Capture previous state for rollback on error
+                      const previousSelected = selectedSubmission
+                      // Optimistically update the UI
+                      setSelectedSubmission({ ...selectedSubmission, delivered: newDelivered })
+                      updateSubmissionMutation.mutate(
+                        {
+                          id: selectedSubmission.id,
+                          data: { delivered: newDelivered },
+                        },
+                        {
+                          onError: (error) => {
+                            // Roll back to previous state on error
+                            setSelectedSubmission(previousSelected)
+                            toast.error('Failed to update delivery status. Please try again.')
+                            console.error('Error updating submission:', error)
+                          },
+                        }
+                      )
+                    }}
+                    disabled={updateSubmissionMutation.isPending}
+                    className="w-4 h-4 text-[#E91E63] border-gray-300 rounded focus:ring-[#E91E63] focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Delivered</span>
+                </label>
+              </div>
               <table className="w-full">
                 <thead className="bg-white">
                   <tr>
@@ -1669,6 +1772,15 @@ function InventoryRequestedSection() {
                 <div className="mt-4 pt-4 border-t">
                   <h4 className="font-medium mb-2">Additional Notes:</h4>
                   <p className="text-sm text-gray-600">{selectedSubmission.additionalNotes}</p>
+                </div>
+              )}
+              {selectedSubmission.returningEmptyGallons && (
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <Droplet className="h-4 w-4 text-blue-600" />
+                    Returning Empty Gallons:
+                  </h4>
+                  <p className="text-sm text-gray-600">{selectedSubmission.returningEmptyGallons}</p>
                 </div>
               )}
             </div>
@@ -1749,6 +1861,7 @@ function InventoryRequestedSection() {
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Tech Name</th>
                         <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Date</th>
                         <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Items</th>
+                        <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">Returning Empty Gallons</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -1758,13 +1871,35 @@ function InventoryRequestedSection() {
                           <tr key={submission.id}>
                             <td className="px-4 py-3 font-medium">{submission.submitterName}</td>
                             <td className="px-4 py-3 text-center">{formatDate(submission.createdAt)}</td>
-                            <td className="px-4 py-3 text-center">{items.length} items</td>
+                            <td className="px-4 py-3">
+                              {items.length > 0 ? (
+                                <div className="flex flex-col gap-1">
+                                  {items.map((item, idx) => (
+                                    <div key={idx} className="text-sm">
+                                      {item.name} ({item.quantity})
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">No items</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {submission.returningEmptyGallons ? (
+                                <div className="flex items-center justify-center gap-1.5 text-blue-600">
+                                  <Droplet className="h-4 w-4" />
+                                  <span className="text-sm font-medium">{submission.returningEmptyGallons}</span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-sm">-</span>
+                              )}
+                            </td>
                           </tr>
                         )
                       })}
                       {submissions.length === 0 && (
                         <tr>
-                          <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                          <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                             No form submissions found for this period
                           </td>
                         </tr>
@@ -2308,7 +2443,7 @@ export default function Inventory() {
     const headers = ['Item Name', 'To Be Ordered']
     const rows = allItems.map((item) => {
       const itemName = item.name || '-'
-      const toBeOrdered = (item.idealTotalInventory || 0) - (item.totalInventory || 0)
+      const toBeOrdered = Math.max(0, (item.idealTotalInventory || 0) - (item.totalInventory || 0))
       return [itemName, toBeOrdered]
     })
 
@@ -2652,12 +2787,12 @@ export default function Inventory() {
                     ))}
                   </select>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Store className="h-4 w-4" />
+                <div className="relative">
+                  <Store className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                   <select
                     value={selectedStoreFilter}
                     onChange={(e) => setSelectedStoreFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm w-[180px] bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+                    className="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm w-[180px] bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                   >
                     <option value="all">All Suppliers</option>
                     {stores.map((store) => (
@@ -2768,7 +2903,7 @@ export default function Inventory() {
                             <span>{item.idealTotalInventory}</span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span>{(item.idealTotalInventory || 0) - (item.totalInventory || 0)}</span>
+                            <span>{Math.max(0, (item.idealTotalInventory || 0) - (item.totalInventory || 0))}</span>
                           </td>
                           {safeColumnDefinitions
                             .filter(col => col.isVisible)
@@ -2993,6 +3128,7 @@ interface DraftPurchase {
   amount: string
   quantity: number
   purchasedAt: string
+  notes?: string | null
 }
 
 function AddPurchaseDialog({
@@ -3011,6 +3147,7 @@ function AddPurchaseDialog({
   const [amount, setAmount] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [purchasedAt, setPurchasedAt] = useState<string | null>(() => getTodayNY())
+  const [notes, setNotes] = useState('')
   const [draftPurchases, setDraftPurchases] = useState<DraftPurchase[]>([])
 
   const createPurchases = useCreateInventoryPurchases()
@@ -3023,6 +3160,7 @@ function AddPurchaseDialog({
     setAmount('')
     setQuantity(1)
     setPurchasedAt(getTodayNY())
+    setNotes('')
   }
 
   const handleClose = () => {
@@ -3045,6 +3183,7 @@ function AddPurchaseDialog({
       amount: amount.trim(),
       quantity,
       purchasedAt: purchasedAt,
+      notes: notes.trim() || null,
     }
   }
 
@@ -3076,6 +3215,7 @@ function AddPurchaseDialog({
           amount: p.amount,
           quantity: p.quantity,
           purchasedAt: p.purchasedAt,
+          notes: p.notes || null,
         })),
       },
       {
@@ -3129,6 +3269,7 @@ function AddPurchaseDialog({
                     >
                       <span className="truncate flex-1">
                         {draft.itemName} - {draft.orderedFrom} - ${draft.amount} x {draft.quantity}
+                        {draft.notes && <span className="text-gray-500 ml-2">(has notes)</span>}
                       </span>
                       <button
                         onClick={() => handleRemoveDraft(index)}
@@ -3223,6 +3364,19 @@ function AddPurchaseDialog({
                 value={purchasedAt || ''}
                 onChange={(e) => setPurchasedAt(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any additional notes about this purchase..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none resize-y"
               />
             </div>
           </div>
@@ -3766,7 +3920,6 @@ function EditItemDialog({
   const [preferredStore, setPreferredStore] = useState(item.preferredStore || '')
   const [totalInventory, setTotalInventory] = useState(String(item.totalInventory))
   const [idealTotalInventory, setIdealTotalInventory] = useState(String(item.idealTotalInventory))
-  const [toBeOrdered, setToBeOrdered] = useState(String(item.toBeOrdered))
   const [dynamicFields, setDynamicFields] = useState<Record<string, string>>(
     item.dynamicFields || {}
   )
@@ -3822,7 +3975,6 @@ function EditItemDialog({
       name: name.trim(),
       totalInventory: parseInt(totalInventory) || 0,
       idealTotalInventory: parseInt(idealTotalInventory) || 0,
-      toBeOrdered: parseInt(toBeOrdered) || 0,
       preferredStore: preferredStore.trim() || null,
       dynamicFields: dynamicFields,
     }
@@ -3958,18 +4110,6 @@ function EditItemDialog({
                   type="number"
                   value={idealTotalInventory}
                   onChange={(e) => setIdealTotalInventory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  To Be Ordered
-                </label>
-                <input
-                  type="number"
-                  value={toBeOrdered}
-                  onChange={(e) => setToBeOrdered(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                   min="0"
                 />

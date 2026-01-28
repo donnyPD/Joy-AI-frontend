@@ -406,10 +406,10 @@ export default function Settings() {
 
   return (
     <SidebarLayout>
-      <div className="bg-white rounded-2xl border border-[#EFEFEF] shadow-sm">
-        <div className="flex gap-8 p-6">
+      <div className="bg-white rounded-2xl border border-[#EFEFEF] shadow-sm h-full flex flex-col">
+        <div className="flex gap-8 p-6 flex-1 min-h-0 overflow-hidden">
           {/* Settings Sidebar */}
-          <aside className="w-64 flex-shrink-0">
+          <aside className="w-64 flex-shrink-0 h-full overflow-y-auto">
             <div className="sticky top-20">
               <div className="flex items-center gap-2 mb-6">
                 <SettingsIcon className="h-5 w-5 text-gray-700" />
@@ -838,8 +838,8 @@ export default function Settings() {
           </aside>
 
           {/* Main Content Area */}
-          <main className="flex-1 min-w-0">
-            <div className="p-6">
+          <main className="flex-1 min-w-0 h-full overflow-hidden">
+            <div className="p-6 h-full flex flex-col">
               {/* Global Settings Section Content */}
               {activeMainSection === 'global-settings' && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

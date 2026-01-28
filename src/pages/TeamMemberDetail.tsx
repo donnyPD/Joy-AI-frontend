@@ -5,7 +5,7 @@ import { logout } from '../features/auth/authSlice'
 import { useTeamMember, useUpdateTeamMember, useCustomMetricDefinitions, type CustomMetricDefinition, type MetricField } from '../features/team-members/teamMembersApi'
 import { useKpiEntries, useUpdateKpiEntry, useDeleteKpiEntry } from '../features/kpi-entries/kpiEntriesApi'
 import { useInventoryNotes, useDeleteInventoryNote } from '../features/inventory-notes/inventoryNotesApi'
-import { useInventoryPurchases, useUpdateInventoryPurchase, useDeleteInventoryPurchase } from '../features/inventory-purchases/inventoryPurchasesApi'
+import { useUpdateInventoryPurchase, useDeleteInventoryPurchase } from '../features/inventory-purchases/inventoryPurchasesApi'
 import { useInventoryFormSubmissions, useUpdateInventoryFormSubmission, useDeleteInventoryFormSubmission, type InventoryFormSubmission } from '../features/inventory/inventoryApi'
 import EditSubmissionDialog from '../components/EditSubmissionDialog'
 import UserFormDrawer from '../components/UserFormDrawer'
@@ -270,7 +270,6 @@ export default function TeamMemberDetail() {
 
   const { data: kpiEntries = [] } = useKpiEntries(id)
   const { data: notes = [] } = useInventoryNotes(id)
-  const { data: inventoryPurchases = [] } = useInventoryPurchases(id, parseInt(filterYear))
   const { data: customMetricDefinitions = [] } = useCustomMetricDefinitions()
   const { data: allSubmissions = [], isLoading: isLoadingSubmissions } = useInventoryFormSubmissions(selectedMonth, selectedYear)
   const updateKpiEntryMutation = useUpdateKpiEntry()
@@ -1247,7 +1246,7 @@ export default function TeamMemberDetail() {
               }`}
             >
               <Package className={`h-4 w-4 ${activeTab === 'inventory' ? 'text-white' : 'text-gray-800'}`} />
-              Inventory ({inventoryPurchases.length})
+              Inventory ({filteredSubmissions.length})
             </button>
           </div>
 

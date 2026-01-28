@@ -90,6 +90,7 @@ export interface InventoryPurchase {
   amount: string
   quantity: number
   purchasedAt: string
+  notes?: string | null
   createdAt: string
 }
 
@@ -100,6 +101,7 @@ export interface InventoryFormSubmission {
   toolSelections: any
   additionalNotes?: string | null
   returningEmptyGallons?: string | null
+  delivered?: boolean
   createdAt: string
 }
 
@@ -587,6 +589,7 @@ export interface CreateInventoryPurchaseData {
   amount: string
   quantity?: number
   purchasedAt: string
+  notes?: string | null
 }
 
 export function useCreateInventoryPurchases() {
