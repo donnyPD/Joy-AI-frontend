@@ -7,6 +7,9 @@ interface Client {
   firstName: string | null
   lastName: string | null
   companyName: string | null
+  isRecurring?: boolean
+  lostRecurring?: boolean
+  whyCancelled?: string | null
   emails: Array<{ address: string; primary: boolean }>
   phones: Array<{ number: string; primary: boolean; description: string | null }>
   billingAddress: {
@@ -27,6 +30,11 @@ interface ClientsResponse {
   success: boolean
   count: number
   clients: Client[]
+}
+
+interface UpdateClientPayload {
+  id: string
+  whyCancelled?: string | null
 }
 
 export const fetchClients = createAsyncThunk<ClientsResponse, void, { rejectValue: string }>(
@@ -52,3 +60,26 @@ export const fetchClients = createAsyncThunk<ClientsResponse, void, { rejectValu
     }
   }
 )
+
+export const updateClient = createAsyncThunk<
+  { success: boolean; client: Client },
+  UpdateClientPayload,
+  { rejectValue: string }
+>('clients/updateClient', async (payload, { rejectWithValue }) => {
+  try {
+    const response = await api.patch<{ success: boolean; client: Client }>(
+      `/clients/${payload.id}`,
+      {
+        whyCancelled: payload.whyCancelled ?? null,
+      },
+    )
+    return response.data
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      'Failed to update client'
+    return rejectWithValue(errorMessage)
+  }
+})

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { fetchClients } from '../features/clients/clientsApi'
+import { fetchClients, updateClient } from '../features/clients/clientsApi'
 import SidebarLayout from '../components/SidebarLayout'
 
 export default function Clients() {
@@ -82,6 +82,9 @@ export default function Clients() {
 
   const columns = [
     { key: 'jId', label: 'J-ID' },
+    { key: 'isRecurring', label: 'Is Recurring?', format: formatBool },
+    { key: 'lostRecurring', label: 'Lost Recurring?', format: formatBool },
+    { key: 'whyCancelled', label: 'Why Cancelled' },
     { key: 'createdDate', label: 'Created Date' },
     { key: 'isCompany', label: 'Is Company?', format: formatBool },
     { key: 'displayName', label: 'Display Name' },
@@ -166,6 +169,29 @@ export default function Clients() {
                         const value = column.format
                           ? column.format(rawValue)
                           : formatValue(rawValue)
+                        if (column.key === 'whyCancelled') {
+                          const isLostRecurring = !!(client as any).lostRecurring
+                          return (
+                            <td key={`${client.id}-${column.key}`} className="px-6 py-4 whitespace-nowrap">
+                              {isLostRecurring ? (
+                                <textarea
+                                  className="text-sm text-gray-900 border border-gray-200 rounded-md p-2 min-w-[220px] min-h-[60px]"
+                                  defaultValue={(client as any).whyCancelled || ''}
+                                  placeholder="Add reason"
+                                  onBlur={(e) => {
+                                    const nextValue = e.currentTarget.value.trim()
+                                    const currentValue = ((client as any).whyCancelled || '').trim()
+                                    if (nextValue !== currentValue) {
+                                      dispatch(updateClient({ id: client.id, whyCancelled: nextValue || null }))
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="text-sm text-gray-500">N/A</div>
+                              )}
+                            </td>
+                          )
+                        }
                         return (
                           <td key={`${client.id}-${column.key}`} className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">{value}</div>
