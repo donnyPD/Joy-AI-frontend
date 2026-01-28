@@ -1,10 +1,13 @@
 import { createSlice } from '@reduxjs/toolkit'
-import { fetchClients } from './clientsApi'
+import { fetchClients, updateClient } from './clientsApi'
 
 interface Client {
   id: string
   jId: string
   createdDate: string | null
+  isRecurring: boolean
+  lostRecurring: boolean
+  whyCancelled: string | null
   isCompany: boolean
   displayName: string
   companyName: string | null
@@ -129,6 +132,9 @@ const clientsSlice = createSlice({
             createdDate: client.createdDate
               ? new Date(client.createdDate).toLocaleDateString('en-GB')
               : null,
+            isRecurring: !!client.isRecurring,
+            lostRecurring: !!client.lostRecurring,
+            whyCancelled: client.whyCancelled || null,
             isCompany: !!client.isCompany,
             displayName: client.displayName || '',
             companyName: client.companyName || null,
@@ -186,6 +192,18 @@ const clientsSlice = createSlice({
       .addCase(fetchClients.rejected, (state, action) => {
         state.isLoading = false
         state.error = action.payload || 'Failed to fetch clients'
+      })
+      .addCase(updateClient.fulfilled, (state, action) => {
+        const updated = action.payload.client
+        const index = state.clients.findIndex((client) => client.id === updated.id)
+        if (index !== -1) {
+          state.clients[index] = {
+            ...state.clients[index],
+            whyCancelled: updated.whyCancelled || null,
+            lostRecurring: !!updated.lostRecurring,
+            isRecurring: !!updated.isRecurring,
+          }
+        }
       })
   },
 })
