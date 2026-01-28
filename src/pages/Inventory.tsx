@@ -239,8 +239,9 @@ function SupplierOrderHistoryTable({
     date: string
     store: string
     notes: string
+    totalPrice: string
     items: { id: string; itemName: string; amount: string; quantity: number }[]
-  }>({ date: '', store: '', notes: '', items: [] })
+  }>({ date: '', store: '', notes: '', totalPrice: '', items: [] })
 
   const { data: purchases = [], isLoading, refetch } = useInventoryPurchases(selectedMonth, selectedYear)
   const { data: availableMonths = [] } = useInventoryPurchasesAvailableMonths()
@@ -364,10 +365,18 @@ function SupplierOrderHistoryTable({
     const storeInList = orderStore && stores.some((s) => s.name === orderStore)
     const defaultStore = storeInList ? orderStore : (stores[0]?.name ?? orderStore)
 
+    // Calculate totalPrice from order.totalPrice or from items (amount * quantity)
+    const calculatedTotalPrice = (order.totalPrice && order.totalPrice !== null)
+      ? parseFloat(order.totalPrice).toFixed(2)
+      : order.items.reduce((sum, item) => {
+          return sum + (parseFloat(item.amount || '0') * (item.quantity || 0))
+        }, 0).toFixed(2)
+
     setEditFormData({
       date: formatDateForInput(order.date),
       store: defaultStore,
       notes: order.items[0]?.notes || '',
+      totalPrice: calculatedTotalPrice,
       items: order.items.map((item) => ({
         id: item.id,
         itemName: item.itemName,
@@ -609,7 +618,7 @@ function SupplierOrderHistoryTable({
                 </div>
                 <div>
                   <span className="text-gray-500">Total Price:</span>
-                  <p className="font-medium text-[#E91E63]">
+                  <p className="font-medium">
                     {viewOrderItems.totalPrice ? `$${parseFloat(viewOrderItems.totalPrice).toFixed(2)}` : '-'}
                   </p>
                 </div>
@@ -700,18 +709,21 @@ function SupplierOrderHistoryTable({
                     />
                   )}
                 </div>
-                {editingOrder.totalPrice && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Price</label>
-                    <input
-                      type="text"
-                      value={`$${parseFloat(editingOrder.totalPrice).toFixed(2)}`}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-[#E91E63] font-medium cursor-not-allowed"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">Total price for overall order (includes tax, shipping, promotion)</p>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Price</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editFormData.totalPrice}
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, totalPrice: e.target.value })
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+                    placeholder="0.00"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Total price for overall order (includes tax, shipping, promotion). Auto-calculated from items, but can be edited.</p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                   <textarea
@@ -743,7 +755,15 @@ function SupplierOrderHistoryTable({
                           onChange={(e) => {
                             const newItems = [...editFormData.items]
                             newItems[idx].quantity = parseInt(e.target.value) || 0
-                            setEditFormData({ ...editFormData, items: newItems })
+                            // Auto-calculate totalPrice from items (amount * quantity for each item)
+                            const calculatedTotal = newItems.reduce((sum, itm) => {
+                              return sum + (parseFloat(itm.amount || '0') )
+                            }, 0)
+                            setEditFormData({ 
+                              ...editFormData, 
+                              items: newItems,
+                              totalPrice: calculatedTotal.toFixed(2)
+                            })
                           }}
                           className="w-20 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                           placeholder="Qty"
@@ -754,7 +774,15 @@ function SupplierOrderHistoryTable({
                           onChange={(e) => {
                             const newItems = [...editFormData.items]
                             newItems[idx].amount = e.target.value
-                            setEditFormData({ ...editFormData, items: newItems })
+                            // Auto-calculate totalPrice from items (amount * quantity for each item)
+                            const calculatedTotal = newItems.reduce((sum, itm) => {
+                              return sum + (parseFloat(itm.amount || '0') )
+                            }, 0)
+                            setEditFormData({ 
+                              ...editFormData, 
+                              items: newItems,
+                              totalPrice: calculatedTotal.toFixed(2)
+                            })
                           }}
                           className="w-24 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                           placeholder="Amount"
