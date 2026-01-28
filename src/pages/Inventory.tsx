@@ -223,6 +223,7 @@ function SupplierOrderHistoryTable({
     date: string
     store: string
     totalAmount: number
+    totalPrice: string | null
     items: InventoryPurchase[]
   } | null>(null)
   const [editingOrder, setEditingOrder] = useState<{
@@ -230,6 +231,7 @@ function SupplierOrderHistoryTable({
     date: string
     store: string
     totalAmount: number
+    totalPrice: string | null
     items: InventoryPurchase[]
   } | null>(null)
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
@@ -237,11 +239,13 @@ function SupplierOrderHistoryTable({
     date: string
     store: string
     notes: string
+    totalPrice: string
     items: { id: string; itemName: string; amount: string; quantity: number }[]
-  }>({ date: '', store: '', notes: '', items: [] })
+  }>({ date: '', store: '', notes: '', totalPrice: '', items: [] })
 
   const { data: purchases = [], isLoading, refetch } = useInventoryPurchases(selectedMonth, selectedYear)
   const { data: availableMonths = [] } = useInventoryPurchasesAvailableMonths()
+  const { data: stores = [] } = useInventoryStores()
 
   // Generate month-year options from available months
   const generateMonthYearOptions = useMemo(() => {
@@ -305,11 +309,14 @@ function SupplierOrderHistoryTable({
       .map(([orderId, items]) => {
         const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.amount || '0'), 0)
         const stores = Array.from(new Set(items.map((item) => item.orderedFrom)))
+        // Get totalPrice from first item (all items in an order have the same totalPrice)
+        const totalPrice = items[0]?.totalPrice || null
         return {
           orderId,
           date: items[0].purchasedAt,
           store: stores.join(', '),
           totalAmount,
+          totalPrice,
           items,
         }
       })
@@ -354,10 +361,22 @@ function SupplierOrderHistoryTable({
       return ''
     }
 
+    const orderStore = order.store?.trim() || ''
+    const storeInList = orderStore && stores.some((s) => s.name === orderStore)
+    const defaultStore = storeInList ? orderStore : (stores[0]?.name ?? orderStore)
+
+    // Calculate totalPrice from order.totalPrice or from items (amount * quantity)
+    const calculatedTotalPrice = (order.totalPrice && order.totalPrice !== null)
+      ? parseFloat(order.totalPrice).toFixed(2)
+      : order.items.reduce((sum, item) => {
+          return sum + (parseFloat(item.amount || '0') * (item.quantity || 0))
+        }, 0).toFixed(2)
+
     setEditFormData({
       date: formatDateForInput(order.date),
-      store: order.store,
+      store: defaultStore,
       notes: order.items[0]?.notes || '',
+      totalPrice: calculatedTotalPrice,
       items: order.items.map((item) => ({
         id: item.id,
         itemName: item.itemName,
@@ -527,7 +546,11 @@ function SupplierOrderHistoryTable({
                   <tr key={order.orderId}>
                     <td className="px-4 py-3 whitespace-nowrap">{order.date}</td>
                     <td className="px-4 py-3">{order.store}</td>
-                    <td className="px-4 py-3 text-center font-medium">${order.totalAmount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-center font-medium">
+                      {order.totalPrice 
+                        ? `$${parseFloat(order.totalPrice).toFixed(2)}` 
+                        : `$${order.totalAmount.toFixed(2)}`}
+                    </td>
                     <td className="px-4 py-3 font-mono text-sm">{order.orderId}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -580,7 +603,7 @@ function SupplierOrderHistoryTable({
               </button>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
-              <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
+              <div className="grid grid-cols-4 gap-4 mb-4 text-sm">
                 <div>
                   <span className="text-gray-500">Date:</span>
                   <p className="font-medium">{viewOrderItems.date}</p>
@@ -590,8 +613,14 @@ function SupplierOrderHistoryTable({
                   <p className="font-medium">{viewOrderItems.store}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Total:</span>
+                  <span className="text-gray-500">Items Total:</span>
                   <p className="font-medium">${viewOrderItems.totalAmount.toFixed(2)}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Total Price:</span>
+                  <p className="font-medium">
+                    {viewOrderItems.totalPrice ? `$${parseFloat(viewOrderItems.totalPrice).toFixed(2)}` : '-'}
+                  </p>
                 </div>
               </div>
               <table className="w-full">
@@ -646,12 +675,54 @@ function SupplierOrderHistoryTable({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
-                  <input
-                    type="text"
-                    value={editFormData.store}
-                    onChange={(e) => setEditFormData({ ...editFormData, store: e.target.value })}
+                  <select
+                    value={
+                      editFormData.store && stores.some((s) => s.name === editFormData.store)
+                        ? editFormData.store
+                        : '__other__'
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (v === '__other__') {
+                        setEditFormData({ ...editFormData, store: editFormData.store || '' })
+                      } else {
+                        setEditFormData({ ...editFormData, store: v })
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+                  >
+                    <option value="">Select supplier</option>
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                    <option value="__other__">+ Other</option>
+                  </select>
+                  {(!editFormData.store || !stores.some((s) => s.name === editFormData.store)) && (
+                    <input
+                      type="text"
+                      value={editFormData.store}
+                      onChange={(e) => setEditFormData({ ...editFormData, store: e.target.value })}
+                      placeholder="Enter supplier name"
+                      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Price</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editFormData.totalPrice}
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, totalPrice: e.target.value })
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+                    placeholder="0.00"
                   />
+                  <p className="mt-1 text-xs text-gray-500">Total price for overall order (includes tax, shipping, promotion). Auto-calculated from items, but can be edited.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
@@ -684,7 +755,15 @@ function SupplierOrderHistoryTable({
                           onChange={(e) => {
                             const newItems = [...editFormData.items]
                             newItems[idx].quantity = parseInt(e.target.value) || 0
-                            setEditFormData({ ...editFormData, items: newItems })
+                            // Auto-calculate totalPrice from items (amount * quantity for each item)
+                            const calculatedTotal = newItems.reduce((sum, itm) => {
+                              return sum + (parseFloat(itm.amount || '0') )
+                            }, 0)
+                            setEditFormData({ 
+                              ...editFormData, 
+                              items: newItems,
+                              totalPrice: calculatedTotal.toFixed(2)
+                            })
                           }}
                           className="w-20 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                           placeholder="Qty"
@@ -695,7 +774,15 @@ function SupplierOrderHistoryTable({
                           onChange={(e) => {
                             const newItems = [...editFormData.items]
                             newItems[idx].amount = e.target.value
-                            setEditFormData({ ...editFormData, items: newItems })
+                            // Auto-calculate totalPrice from items (amount * quantity for each item)
+                            const calculatedTotal = newItems.reduce((sum, itm) => {
+                              return sum + (parseFloat(itm.amount || '0') )
+                            }, 0)
+                            setEditFormData({ 
+                              ...editFormData, 
+                              items: newItems,
+                              totalPrice: calculatedTotal.toFixed(2)
+                            })
                           }}
                           className="w-24 px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
                           placeholder="Amount"
@@ -2700,7 +2787,7 @@ export default function Inventory() {
                 <button
                   onClick={() => navigate('/settings#inventory-custom-fields')}
                   className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-white flex items-center gap-2"
-                  title="Open Inventory Custom Fields Settings"
+                  title="Open Inventory Item Custom Fields Settings"
                 >
                   <Settings className="h-4 w-4" />
                   Settings
@@ -3809,9 +3896,11 @@ function AddItemDialog({
   const [name, setName] = useState('')
   const [totalInventory, setTotalInventory] = useState('0')
   const [pricePerUnit, setPricePerUnit] = useState('')
+  const [selectedSupplier, setSelectedSupplier] = useState('')
   const [threshold] = useState('3')
   const { data: defaultIdealInventoryData } = useDefaultIdealInventory()
   const defaultIdealInventory = defaultIdealInventoryData?.value || 0
+  const { data: stores = [] } = useInventoryStores()
 
   const createMutation = useCreateInventoryItem()
 
@@ -3823,16 +3912,23 @@ function AddItemDialog({
       return
     }
 
+    const mutationData: any = {
+      name: name.trim(),
+      type: 'Product', // Default type
+      categoryId: category.id,
+      totalInventory: parseInt(totalInventory) || 0,
+      pricePerUnit: pricePerUnit || undefined,
+      threshold: parseInt(threshold) || 3,
+      idealTotalInventory: defaultIdealInventory,
+    }
+
+    // Only include preferredStore if a supplier is selected
+    if (selectedSupplier && selectedSupplier.trim()) {
+      mutationData.preferredStore = selectedSupplier.trim()
+    }
+
     createMutation.mutate(
-      {
-        name: name.trim(),
-        type: 'Product', // Default type
-        categoryId: category.id,
-        totalInventory: parseInt(totalInventory) || 0,
-        pricePerUnit: pricePerUnit || undefined,
-        threshold: parseInt(threshold) || 3,
-        idealTotalInventory: defaultIdealInventory,
-      },
+      mutationData,
       {
         onSuccess: () => {
           onClose()
@@ -3881,6 +3977,23 @@ function AddItemDialog({
               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
               placeholder="e.g., 10.00"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Supplier
+            </label>
+            <select
+              value={selectedSupplier}
+              onChange={(e) => setSelectedSupplier(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:border-[#E91E63] focus:ring-1 focus:ring-[#E91E63] focus:outline-none"
+            >
+              <option value="">Select supplier (optional)</option>
+              {stores.map((store) => (
+                <option key={store.id} value={store.name}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <button

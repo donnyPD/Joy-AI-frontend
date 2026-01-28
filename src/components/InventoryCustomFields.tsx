@@ -150,7 +150,7 @@ export default function InventoryCustomFields() {
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Inventory Custom Fields</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Inventory Item Custom Fields</h2>
           <p className="text-sm text-gray-600 mt-1">
             Manage custom columns for your inventory table. These columns will appear in the inventory page.
           </p>
