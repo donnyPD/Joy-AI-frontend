@@ -200,8 +200,9 @@ const clientsSlice = createSlice({
           state.clients[index] = {
             ...state.clients[index],
             whyCancelled: updated.whyCancelled || null,
-            lostRecurring: !!updated.lostRecurring,
-            isRecurring: !!updated.isRecurring,
+            lostRecurring:
+              updated.lostRecurring ?? state.clients[index].lostRecurring,
+            isRecurring: updated.isRecurring ?? state.clients[index].isRecurring,
           }
         }
       })
