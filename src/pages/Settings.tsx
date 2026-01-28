@@ -788,7 +788,7 @@ export default function Settings() {
                         >
                           <div className="flex items-center gap-2">
                             <Sliders className="h-4 w-4" />
-                            <span>Inventory Item Custom Fields</span>
+                            <span>Inventory Item Fields</span>
                           </div>
                         </button>
                       </div>
