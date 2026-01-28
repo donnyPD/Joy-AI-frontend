@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Check, Loader2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Check, Loader2, Calendar, Upload } from 'lucide-react'
 import {
   useInventory,
   useInventoryCategories,
@@ -11,9 +11,9 @@ import {
   type Inventory as InventoryType,
   type InventoryStore,
 } from '../features/inventory/inventoryApi'
-import { useTeamMembers } from '../features/team-members/teamMembersApi'
 import toast from 'react-hot-toast'
 import Navbar from '../components/Navbar'
+import axios from 'axios'
 
 // Helper function to get today's date in NY timezone as YYYY-MM-DD
 function getTodayNY(): string {
@@ -26,7 +26,7 @@ function getTodayNY(): string {
 }
 
 interface RowData {
-  itemId: string
+  itemId: string | null
   itemName: string
   selectedStore: string | null
   quantity: string
@@ -38,26 +38,29 @@ export default function InventoryPurchaseOrder() {
 
   const [selectedDate, setSelectedDate] = useState<string | null>(() => getTodayNY())
   const [globalStore, setGlobalStore] = useState('')
-  const [selectedTechnician, setSelectedTechnician] = useState<string>('')
   const [rowData, setRowData] = useState<Record<string, RowData>>({})
   const [tax, setTax] = useState('')
   const [shipping, setShipping] = useState('')
+  const [notes, setNotes] = useState('')
   const [showNewStoreInput, setShowNewStoreInput] = useState(false)
   const [newStoreName, setNewStoreName] = useState('')
   const [storeToDelete, setStoreToDelete] = useState<InventoryStore | null>(null)
   const [showDeleteStoreDialog, setShowDeleteStoreDialog] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [isProcessingPDF, setIsProcessingPDF] = useState(false)
+  const [extractedOrderId, setExtractedOrderId] = useState<string | null>(null)
+  const [hasUploadedPDF, setHasUploadedPDF] = useState(false)
+  const [supplierNotFoundInList, setSupplierNotFoundInList] = useState(false)
 
   const { data: inventoryItems = [], isLoading: isLoadingInventory } = useInventory()
   const { data: stores = [], isLoading: isLoadingStores } = useInventoryStores()
   const { data: categories = [], isLoading: isLoadingCategories } = useInventoryCategories()
-  const { data: teamMembers = [] } = useTeamMembers()
   const createStoreMutation = useCreateInventoryStore()
   const deleteStoreMutation = useDeleteInventoryStore()
   const createPurchasesMutation = useCreateInventoryPurchases()
 
   useEffect(() => {
-    if (inventoryItems.length > 0) {
+    if (inventoryItems.length > 0 && !hasUploadedPDF) {
       const initialData: Record<string, RowData> = {}
       inventoryItems.forEach((item) => {
         initialData[item.id] = {
@@ -70,10 +73,13 @@ export default function InventoryPurchaseOrder() {
       })
       setRowData(initialData)
     }
-  }, [inventoryItems])
+  }, [inventoryItems, hasUploadedPDF])
 
   useEffect(() => {
     // Only update rows that don't have a per-item store selected
+    // Skip this effect when PDF data is loaded to preserve PDF items
+    if (hasUploadedPDF) return
+    
     setRowData((prev) => {
       const updated: Record<string, RowData> = {}
       Object.keys(prev).forEach((key) => {
@@ -88,7 +94,7 @@ export default function InventoryPurchaseOrder() {
       })
       return updated
     })
-  }, [globalStore])
+  }, [globalStore, hasUploadedPDF])
 
   const handleQtyChange = (itemId: string, value: string) => {
     setRowData((prev) => ({
@@ -167,8 +173,213 @@ export default function InventoryPurchaseOrder() {
     return `ORD-${year}${month}${day}-${random}`
   }
 
+  const handlePDFUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a PDF file')
+      return
+    }
+
+    setIsProcessingPDF(true)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      // Get API URL from environment variable, fallback to mock data
+      const pdfApiUrl = import.meta.env.VITE_PDF_PARSER_API_URL
+      
+      // For testing: Use mock data instead of actual API call
+      const useMockData = !pdfApiUrl
+      
+      let extractedData: any
+      
+      if (useMockData) {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        
+        // Return fixed mock JSON data for testing
+        // Mix of items: some matching inventory, some custom items
+        const mockItems: Array<{ name: string; quantity: number; unitPrice: number }> = []
+        
+        // Add items from inventory (if available)
+        // if (inventoryItems.length >= 2) {
+        //   mockItems.push(
+        //     {
+        //       name: inventoryItems[0].name,
+        //       quantity: 5,
+        //       unitPrice: 10.99
+        //     },
+        //     {
+        //       name: inventoryItems[1].name,
+        //       quantity: 10,
+        //       unitPrice: 21.98
+        //     }
+        //   )
+        // } else if (inventoryItems.length === 1) {
+        //   mockItems.push({
+        //     name: inventoryItems[0].name,
+        //     quantity: 5,
+        //     unitPrice: 10.99
+        //   })
+        // }
+        
+        // Add custom items (not in inventory) to test custom items feature
+        mockItems.push(
+          {
+            name: 'Custom Item from PDF - Not in Inventory',
+            quantity: 15,
+            unitPrice: 32.97
+          },
+          {
+            name: 'Another Custom 5544',
+            quantity: 8,
+            unitPrice: 15.50
+          },
+           {
+            name: 'Another Custom 435',
+            quantity: 8,
+            unitPrice: 15.50
+          },
+           {
+            name: 'Another Custom 32',
+            quantity: 8,
+            unitPrice: 15.50
+          }
+        )
+        console.log('📦 Mock items:', mockItems)
+        
+        extractedData = {
+          orderId: '123-4567890-123467',
+          date: '2026-01-29',
+          supplier: 'Flipkart',
+          items: mockItems,
+          tax: 12.50,
+          shipping: 8.99,
+          notes: 'Mock PDF data - Replace with actual n8n endpoint for production use.'
+        }
+      } else {
+        // Actual API call to n8n webhook
+        const response = await axios.post(pdfApiUrl, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+        extractedData = response.data
+      }
+      
+      // Populate form with extracted data
+      populateFormFromPDF(extractedData)
+      setHasUploadedPDF(true)
+      
+      toast.success('PDF processed successfully! Form fields populated.')
+    } catch (error: any) {
+      console.error('PDF processing error:', error)
+      toast.error(error.response?.data?.message || 'Failed to process PDF. Please try again.')
+    } finally {
+      setIsProcessingPDF(false)
+      // Reset file input
+      event.target.value = ''
+    }
+  }
+
+  const populateFormFromPDF = (data: any) => {
+    // Set orderId if extracted
+    if (data.orderId) {
+      setExtractedOrderId(data.orderId)
+    }
+
+    // Set date
+    if (data.date) {
+      setSelectedDate(data.date)
+    }
+
+    // Set supplier
+    if (data.supplier) {
+      const existingStore = stores.find(s => s.name.toLowerCase() === data.supplier.toLowerCase())
+      if (existingStore) {
+        setGlobalStore(data.supplier)
+        setSupplierNotFoundInList(false)
+      } else {
+        setGlobalStore(data.supplier)
+        setSupplierNotFoundInList(true)
+        // toast(`Supplier "${data.supplier}" not found. Please add it manually.`, { icon: 'ℹ️' })
+      }
+    }
+
+    // Set tax and shipping
+    if (data.tax !== undefined && data.tax !== null) {
+      setTax(String(data.tax))
+    }
+    if (data.shipping !== undefined && data.shipping !== null) {
+      setShipping(String(data.shipping))
+    }
+
+    // Set notes
+    if (data.notes) {
+      setNotes(data.notes)
+    }
+
+    // Populate items
+    if (data.items && Array.isArray(data.items)) {
+      console.log('📦 Populating items from PDF data:', data.items)
+      console.log('📋 Available inventory items:', inventoryItems.map(i => i.name))
+      
+      setRowData((prev) => {
+        const updated = { ...prev }
+        let matchedCount = 0
+        let customItemIndex = 0
+        
+        data.items.forEach((item: any) => {
+          // Try to find item by name (case-insensitive)
+          const inventoryItem = inventoryItems.find(
+            (inv) => inv.name.toLowerCase() === item.name?.toLowerCase()
+          )
+          
+          if (inventoryItem) {
+            console.log(`✅ Matched: "${item.name}" -> "${inventoryItem.name}" (ID: ${inventoryItem.id})`)
+            
+            // Initialize rowData for this item if it doesn't exist
+            if (!updated[inventoryItem.id]) {
+              updated[inventoryItem.id] = {
+                itemId: inventoryItem.id,
+                itemName: inventoryItem.name,
+                selectedStore: null,
+                quantity: '',
+                unitPrice: '',
+              }
+            }
+            
+            // Update with extracted data
+            updated[inventoryItem.id] = {
+              ...updated[inventoryItem.id],
+              quantity: String(item.quantity || ''),
+              unitPrice: String(item.unitPrice || ''),
+            }
+            matchedCount++
+          } else {
+            // Item not in inventory - add as custom item
+            console.log(`➕ Adding custom item: "${item.name}"`)
+            const customKey = `custom-${customItemIndex++}`
+            updated[customKey] = {
+              itemId: null, // null for custom items not in inventory
+              itemName: item.name || 'Unknown Item',
+              selectedStore: null,
+              quantity: String(item.quantity || ''),
+              unitPrice: String(item.unitPrice || ''),
+            }
+          }
+        })
+        
+        console.log(`📊 Matched ${matchedCount} out of ${data.items.length} items, added ${customItemIndex} custom items`)
+        return updated
+      })
+    }
+  }
+
   const handleSubmit = () => {
-    const orderId = generateOrderId()
+    const orderId = extractedOrderId || generateOrderId()
     const purchases: {
       orderId: string
       itemId: string | null
@@ -177,6 +388,7 @@ export default function InventoryPurchaseOrder() {
       amount: string
       quantity: number
       purchasedAt: string
+      notes?: string | null
     }[] = []
 
     const validationErrors: string[] = []
@@ -221,6 +433,7 @@ export default function InventoryPurchaseOrder() {
             amount: totalAmount.toFixed(2),
             quantity: parsedQty,
             purchasedAt: selectedDate || getTodayNY(),
+            notes: notes.trim() || null,
           })
         }
       }
@@ -240,10 +453,18 @@ export default function InventoryPurchaseOrder() {
     }
 
     createPurchasesMutation.mutate(
-      { purchases, technicianName: selectedTechnician || undefined },
+      { purchases },
       {
         onSuccess: () => {
           setShowSuccessDialog(true)
+        },
+        onError: (error: any) => {
+          // Error is already handled in the mutation hook, but we can add additional handling here if needed
+          const errorMessage = error.response?.data?.message || error.message
+          if (errorMessage && errorMessage.includes('already exists')) {
+            // Suggest generating a new orderId for duplicate orderId errors
+            // toast.error(errorMessage + ' Please generate a new order ID or use a different one.')
+          }
         },
       }
     )
@@ -252,9 +473,12 @@ export default function InventoryPurchaseOrder() {
   const resetForm = () => {
     setSelectedDate(getTodayNY())
     setGlobalStore('')
-    setSelectedTechnician('')
     setTax('')
     setShipping('')
+    setNotes('')
+    setExtractedOrderId(null)
+    setHasUploadedPDF(false)
+    setSupplierNotFoundInList(false)
     const initialData: Record<string, RowData> = {}
     inventoryItems.forEach((item) => {
       initialData[item.id] = {
@@ -281,6 +505,11 @@ export default function InventoryPurchaseOrder() {
   const grandTotal = calculateGrandTotal()
 
   const groupedInventoryItems = useMemo(() => {
+    // If PDF was uploaded, return empty - we'll only show PDF items
+    if (hasUploadedPDF) {
+      return {}
+    }
+    
     // Create a map of categoryId to category name
     const categoryMap = new Map<string, string>()
     categories.forEach((cat) => categoryMap.set(cat.id, cat.name))
@@ -306,7 +535,14 @@ export default function InventoryPurchaseOrder() {
     })
 
     return grouped
-  }, [inventoryItems, categories, globalStore])
+  }, [inventoryItems, categories, globalStore, hasUploadedPDF])
+
+  // Get custom items (items from PDF that are not in inventory)
+  const customItems = useMemo(() => {
+    return Object.entries(rowData)
+      .filter(([key]) => key.startsWith('custom-'))
+      .map(([key, row]) => ({ key, ...row }))
+  }, [rowData])
 
   if (isLoadingInventory || isLoadingStores || isLoadingCategories) {
     return (
@@ -326,7 +562,7 @@ export default function InventoryPurchaseOrder() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Inventory Purchase Order</h1>
-            <p className="text-gray-600 mt-2">Add new purchase orders for inventory items</p>
+            <p className="text-muted mt-2  text-gray-4s00">Add new purchase orders for Inventory items</p>
           </div>
           <button
             onClick={handleGoBack}
@@ -342,41 +578,82 @@ export default function InventoryPurchaseOrder() {
             <h2 className="text-lg font-semibold">Order Details</h2>
           </div>
 
-          <div className="px-6 py-4 border-b bg-gray-50">
+          <div className="px-6 py-4 border-b"  >
             <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-6">
               <div className="flex items-center gap-2">
                 <label className="font-semibold text-gray-900 whitespace-nowrap">Date</label>
-                <input
-                  type="date"
-                  value={selectedDate || ''}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-[180px]"
-                />
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={selectedDate || ''}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] w-[180px]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="font-semibold text-gray-900 whitespace-nowrap">Upload PDF</label>
+                <label className="relative cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handlePDFUpload}
+                    disabled={isProcessingPDF}
+                    className="hidden"
+                    id="pdf-upload-input"
+                  />
+                  <span className={`px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 bg-white ${isProcessingPDF ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    {isProcessingPDF ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Upload PDF
+                      </>
+                    )}
+                  </span>
+                </label>
               </div>
 
               <div className="flex items-center gap-2">
                 <label className="font-semibold text-gray-900 whitespace-nowrap">
                   Choose supplier
                 </label>
-                <select
-                  value={globalStore}
-                  onChange={(e) => {
-                    if (e.target.value === '__other__') {
-                      setShowNewStoreInput(true)
-                    } else {
-                      setGlobalStore(e.target.value)
-                    }
-                  }}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-[180px] bg-white"
-                >
-                  <option value="">Select supplier</option>
-                  {stores.map((store) => (
-                    <option key={store.id} value={store.name}>
-                      {store.name}
-                    </option>
-                  ))}
-                  <option value="__other__">+ Add Other supplier</option>
-                </select>
+                {supplierNotFoundInList ? (
+                  <input
+                    type="text"
+                    value={globalStore}
+                    readOnly
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] w-[180px] bg-gray-50"
+                  />
+                ) : (
+                  <select
+                    value={globalStore}
+                    onChange={(e) => {
+                      if (e.target.value === '__other__') {
+                        setShowNewStoreInput(true)
+                        setSupplierNotFoundInList(false)
+                      } else {
+                        setGlobalStore(e.target.value)
+                        setSupplierNotFoundInList(false)
+                      }
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] w-[180px] bg-white"
+                  >
+                    <option value="">Select supplier</option>
+                    {stores.map((store) => (
+                      <option key={store.id} value={store.name}>
+                        {store.name}
+                      </option>
+                    ))}
+                    <option value="__other__">+ Add Other supplier</option>
+                  </select>
+                )}
                 {stores.length > 0 && (
                   <button
                     onClick={() => {
@@ -389,45 +666,27 @@ export default function InventoryPurchaseOrder() {
                   </button>
                 )}
               </div>
-
-              <div className="flex items-center gap-2">
-                <label className="font-semibold text-gray-900 whitespace-nowrap">
-                  Assign to Technician (Optional)
-                </label>
-                <select
-                  value={selectedTechnician}
-                  onChange={(e) => setSelectedTechnician(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-[180px] bg-white"
-                >
-                  <option value="">None</option>
-                  {teamMembers.map((member) => (
-                    <option key={member.id} value={member.name}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
 
           <div className="p-0">
             <div className="h-[400px] sm:h-[450px] w-full overflow-auto">
               <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-10 bg-blue-50">
+                <thead className=" top-0 z-10"  >
                   <tr>
-                    <th className="min-w-[200px] bg-blue-50 font-bold text-gray-900 px-4 py-3 text-left border-b">
+                    <th className="min-w-[200px] font-bold text-black px-4 py-3 text-left border-b">
                       Items
                     </th>
-                    <th className="min-w-[80px] text-center font-bold text-gray-900 px-4 py-3 border-b bg-blue-50">
+                    <th className="min-w-[80px] text-center font-bold text-black px-4 py-3 border-b">
                       To Be Ordered
                     </th>
-                    <th className="min-w-[80px] text-center font-bold text-gray-900 px-4 py-3 border-b bg-blue-50">
+                    <th className="min-w-[80px] text-center font-bold text-black px-4 py-3 border-b">
                       Quantity
                     </th>
-                    <th className="min-w-[100px] text-center font-bold text-gray-900 px-4 py-3 border-b bg-blue-50">
+                    <th className="min-w-[100px] text-center font-bold text-black px-4 py-3 border-b">
                       Item Price
                     </th>
-                    <th className="min-w-[100px] text-center font-bold text-gray-900 px-4 py-3 border-b bg-blue-50">
+                    <th className="min-w-[100px] text-center font-bold text-black px-4 py-3 border-b">
                       Total
                     </th>
                   </tr>
@@ -446,12 +705,13 @@ export default function InventoryPurchaseOrder() {
                         <tr key={`category-${categoryName}`}>
                           <td
                             colSpan={5}
-                            className="font-semibold text-sm text-gray-600 py-2 px-4 bg-gray-100 text-left border-b"
+                            className="font-semibold text-sm text-white py-2 px-4 text-left border-b"
+                            style={{ backgroundColor: '#7f8a9f' }}
                           >
                             {categoryName}
                           </td>
                         </tr>
-                        {items.map((item, index) => {
+                        {items.map((item) => {
                           const row = rowData[item.id] || {
                             itemId: item.id,
                             itemName: item.name,
@@ -460,25 +720,24 @@ export default function InventoryPurchaseOrder() {
                             unitPrice: '',
                           }
                           const rowTotal = calculateRowTotal(row as RowData)
-                          const rowBgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                           const toBeOrdered =
                             Math.max(0, (item.idealTotalInventory || 0) - (item.totalInventory || 0))
 
                           return (
-                            <tr key={item.id} className={rowBgColor}>
-                              <td
-                                className={`font-medium ${rowBgColor} text-gray-900 text-sm pl-6 py-3 border-b`}
-                              >
+                            <tr key={item.id}>
+                              <td className="font-medium text-gray-900 text-sm pl-6 py-3 border-b">
                                 {item.name}
                               </td>
-                              <td className="text-center text-sm py-3 border-b">{toBeOrdered}</td>
+                              <td className="text-center text-sm py-3 border-b">
+                                {toBeOrdered}
+                              </td>
                               <td className="text-center py-3 border-b">
                                 <input
                                   type="number"
                                   min="0"
                                   value={row.quantity || ''}
                                   onChange={(e) => handleQtyChange(item.id, e.target.value)}
-                                  className="w-[70px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  className="w-[70px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
                                   placeholder="0"
                                 />
                               </td>
@@ -489,7 +748,7 @@ export default function InventoryPurchaseOrder() {
                                   step="0.01"
                                   value={row.unitPrice || ''}
                                   onChange={(e) => handlePriceChange(item.id, e.target.value)}
-                                  className="w-[80px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  className="w-[80px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
                                   placeholder="$0.00"
                                 />
                               </td>
@@ -502,43 +761,112 @@ export default function InventoryPurchaseOrder() {
                       </>
                     ))
                   )}
+                  
+                  {/* Custom Items Section - Items from PDF not in inventory */}
+                  {customItems.length > 0 && (
+                    <>
+                      <tr key="category-custom">
+                        <td
+                          colSpan={5}
+                          className="font-semibold text-sm text-white py-2 px-4 text-left border-b"
+                          style={{ backgroundColor: '#7f8a9f' }}
+                        >
+                          Custom Items (from PDF)
+                        </td>
+                      </tr>
+                      {customItems.map((customItem) => {
+                        const row = rowData[customItem.key] || customItem
+                        const rowTotal = calculateRowTotal(row as RowData)
+
+                        return (
+                          <tr key={customItem.key}>
+                            <td className="font-medium text-gray-900 text-sm pl-6 py-3 border-b">
+                              {row.itemName}
+                            </td>
+                            <td className="text-center text-sm py-3 border-b">
+                              -
+                            </td>
+                            <td className="text-center py-3 border-b">
+                              <input
+                                type="number"
+                                min="0"
+                                value={row.quantity || ''}
+                                onChange={(e) => handleQtyChange(customItem.key, e.target.value)}
+                                className="w-[70px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="text-center py-3 border-b">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={row.unitPrice || ''}
+                                onChange={(e) => handlePriceChange(customItem.key, e.target.value)}
+                                className="w-[80px] mx-auto text-center text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63] bg-white"
+                                placeholder="$0.00"
+                              />
+                            </td>
+                            <td className="text-center font-medium py-3 border-b">
+                              {rowTotal > 0 ? `$${rowTotal.toFixed(2)}` : '-'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>
 
-            <div className="border-t bg-gray-50 px-6 py-4">
-              <div className="flex flex-col gap-3 max-w-md ml-auto">
-                <div className="flex items-center justify-between">
-                  <label className="font-semibold">Sub total ($)</label>
-                  <span className="font-bold text-lg">${subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <label className="font-semibold whitespace-nowrap">TAX ($)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={tax}
-                    onChange={(e) => setTax(e.target.value)}
-                    className="w-[100px] text-right px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
+            <div className="border-t px-6 py-4">
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* Notes Section - Left Side */}
+                <div className="max-w-[500px]">
+                  <label className="block font-semibold text-gray-900 mb-2">Notes</label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any additional notes about this purchase order..."
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63] resize-y"
                   />
                 </div>
-                <div className="flex items-center justify-between gap-4">
-                  <label className="font-semibold whitespace-nowrap">SHIPPING ($)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={shipping}
-                    onChange={(e) => setShipping(e.target.value)}
-                    className="w-[100px] text-right px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="flex items-center justify-between border-t pt-3">
-                  <label className="font-bold text-lg">GRAND TOTAL ($)</label>
-                  <span className="font-bold text-xl text-blue-600">${grandTotal.toFixed(2)}</span>
+
+                {/* Cost Summary Section - Right Side */}
+                <div className="flex flex-col gap-3 ml-auto lg:min-w-[300px]">
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold">Sub total ($)</label>
+                    <span className="font-bold text-lg">${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <label className="font-semibold whitespace-nowrap">TAX ($)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={tax}
+                      onChange={(e) => setTax(e.target.value)}
+                      className="w-[100px] text-right px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <label className="font-semibold whitespace-nowrap">SHIPPING ($)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={shipping}
+                      onChange={(e) => setShipping(e.target.value)}
+                      className="w-[100px] text-right px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-3">
+                    <label className="font-bold text-lg">GRAND TOTAL ($)</label>
+                    <span className="font-bold text-xl text-[#E91E63]">${grandTotal.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -554,7 +882,7 @@ export default function InventoryPurchaseOrder() {
             <button
               onClick={handleSubmit}
               disabled={createPurchasesMutation.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
             >
               {createPurchasesMutation.isPending ? (
                 <>
@@ -589,7 +917,7 @@ export default function InventoryPurchaseOrder() {
                 value={newStoreName}
                 onChange={(e) => setNewStoreName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddNewStore()}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#E91E63]"
               />
               <div className="flex justify-end gap-2 mt-4">
                 <button
@@ -604,7 +932,7 @@ export default function InventoryPurchaseOrder() {
                 <button
                   onClick={handleAddNewStore}
                   disabled={createStoreMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
+                  className="px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
                 >
                   {createStoreMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -705,7 +1033,7 @@ export default function InventoryPurchaseOrder() {
             <div className="px-6 py-4 flex flex-col gap-3">
               <button
                 onClick={handlePlaceAnotherOrder}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-[#E91E63] text-white rounded-md hover:bg-[#C2185B] flex items-center justify-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Place another order

@@ -128,7 +128,11 @@ export default function InventoryFormConfig() {
   }
 
   const getItemsForCategory = (categoryId: string) => {
-    return (formConfigData?.inventory || []).filter((item) => item.categoryId === categoryId)
+    if (!formConfigData?.inventory) return []
+    // Filter items by categoryId, ensuring we match exactly
+    return formConfigData.inventory.filter((item) => {
+      return item.categoryId === categoryId
+    })
   }
 
   const publicFormUrl = publicFormKeyData?.publicFormKey
@@ -136,7 +140,7 @@ export default function InventoryFormConfig() {
     : `${window.location.origin}/public/inventory-form`
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col flex-1 min-h-0">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
@@ -166,7 +170,7 @@ export default function InventoryFormConfig() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 min-h-0">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-[#E91E63]" />
@@ -267,85 +271,96 @@ export default function InventoryFormConfig() {
                         </tr>
                       </thead>
                       <tbody>
-                        {getItemsForCategory(category.id).map((item) => {
-                          const config = getConfigForItem(category.name, item.name)
-                          return (
-                            <tr key={item.id} className="border-b border-gray-100">
-                              <td className="p-2 text-sm font-medium">{item.name}</td>
-                              <td className="p-2 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateConfig(category.name, item.name, {
-                                      isVisible: !config.isVisible,
-                                    })
-                                  }
-                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
-                                    config.isVisible ? 'bg-[#E91E63]' : 'bg-gray-300'
-                                  }`}
-                                >
-                                  <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                      config.isVisible ? 'translate-x-6' : 'translate-x-1'
+                        {getItemsForCategory(category.id).length > 0 ? (
+                          getItemsForCategory(category.id).map((item) => {
+                            const config = getConfigForItem(category.name, item.name)
+                            return (
+                              <tr key={item.id} className="border-b border-gray-100">
+                                <td className="p-2 text-sm font-medium">{item.name}</td>
+                                <td className="p-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateConfig(category.name, item.name, {
+                                        isVisible: !config.isVisible,
+                                      })
+                                    }
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                                      config.isVisible ? 'bg-[#E91E63]' : 'bg-gray-300'
                                     }`}
-                                  />
-                                </button>
-                              </td>
-                              <td className="p-2 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateConfig(category.name, item.name, {
-                                      isRequired: !config.isRequired,
-                                    })
-                                  }
-                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
-                                    config.isRequired ? 'bg-[#E91E63]' : 'bg-gray-300'
-                                  }`}
-                                >
-                                  <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                      config.isRequired ? 'translate-x-6' : 'translate-x-1'
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        config.isVisible ? 'translate-x-6' : 'translate-x-1'
+                                      }`}
+                                    />
+                                  </button>
+                                </td>
+                                <td className="p-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateConfig(category.name, item.name, {
+                                        isRequired: !config.isRequired,
+                                      })
+                                    }
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#E91E63] focus:ring-offset-2 ${
+                                      config.isRequired ? 'bg-[#E91E63]' : 'bg-gray-300'
                                     }`}
-                                  />
-                                </button>
-                              </td>
-                              <td className="p-2 text-center">
-                                <input
-                                  type="number"
-                                  className="w-16 mx-auto text-center px-2 py-1 border border-gray-300 rounded"
-                                  value={config.dropdownMin}
-                                  onChange={(e) =>
-                                    updateConfig(category.name, item.name, {
-                                      dropdownMin: parseInt(e.target.value) || 1,
-                                    })
-                                  }
-                                  min="1"
-                                  max="50"
-                                />
-                              </td>
-                              {activeTeamMemberTypes.map((type) => (
-                                <td key={type.id} className="p-2 text-center">
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        config.isRequired ? 'translate-x-6' : 'translate-x-1'
+                                      }`}
+                                    />
+                                  </button>
+                                </td>
+                                <td className="p-2 text-center">
                                   <input
                                     type="number"
                                     className="w-16 mx-auto text-center px-2 py-1 border border-gray-300 rounded"
-                                    value={config.dropdownMaxByType?.[type.name] || 5}
+                                    value={config.dropdownMin}
                                     onChange={(e) =>
                                       updateConfig(category.name, item.name, {
-                                        dropdownMaxByType: {
-                                          ...config.dropdownMaxByType,
-                                          [type.name]: parseInt(e.target.value) || 5,
-                                        },
+                                        dropdownMin: parseInt(e.target.value) || 1,
                                       })
                                     }
                                     min="1"
                                     max="50"
                                   />
                                 </td>
-                              ))}
-                            </tr>
-                          )
-                        })}
+                                {activeTeamMemberTypes.map((type) => (
+                                  <td key={type.id} className="p-2 text-center">
+                                    <input
+                                      type="number"
+                                      className="w-16 mx-auto text-center px-2 py-1 border border-gray-300 rounded"
+                                      value={config.dropdownMaxByType?.[type.name] || 5}
+                                      onChange={(e) =>
+                                        updateConfig(category.name, item.name, {
+                                          dropdownMaxByType: {
+                                            ...config.dropdownMaxByType,
+                                            [type.name]: parseInt(e.target.value) || 5,
+                                          },
+                                        })
+                                      }
+                                      min="1"
+                                      max="50"
+                                    />
+                                  </td>
+                                ))}
+                              </tr>
+                            )
+                          })
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={4 + activeTeamMemberTypes.length}
+                              className="p-8 text-center text-gray-500 text-sm"
+                            >
+                              No items found in this category
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
