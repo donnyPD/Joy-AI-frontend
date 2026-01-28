@@ -211,7 +211,7 @@ export default function InventoryPurchaseOrder() {
 
     try {
       // Call n8n invoice extraction webhook
-      const n8nWebhookUrl = 'https://automate-staging.automatejoy.ai/webhook/extract-invoice'
+      const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://automate-staging.automatejoy.ai/webhook/extract-invoice'
       
       const response = await axios.post(n8nWebhookUrl, formData, {
         headers: {
