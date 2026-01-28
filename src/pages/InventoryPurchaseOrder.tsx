@@ -251,31 +251,8 @@ export default function InventoryPurchaseOrder() {
       setSelectedDate(data.date)
     }
 
-    // Set supplier
-    if (data.supplier) {
-      const existingStore = stores.find(s => s.name.toLowerCase() === data.supplier.toLowerCase())
-      if (existingStore) {
-        setGlobalStore(data.supplier)
-        setSupplierNotFoundInList(false)
-      } else {
-        setGlobalStore(data.supplier)
-        setSupplierNotFoundInList(true)
-        // Auto-create supplier if it doesn't exist
-        createStoreMutation.mutate(
-          { name: data.supplier },
-          {
-            onSuccess: () => {
-              setSupplierNotFoundInList(false)
-              toast.success(`Supplier "${data.supplier}" created automatically`)
-            },
-            onError: (error: any) => {
-              const errorMessage = error.response?.data?.message || error.message || 'Failed to create supplier'
-              toast.error(`Could not auto-create supplier: ${errorMessage}`)
-            },
-          }
-        )
-      }
-    }
+    // Don't set supplier from PDF - use the supplier already selected in the dropdown
+    // The supplier from n8n webhook is ignored to allow users to choose their own supplier
 
     // Set tax and shipping
     if (data.tax !== undefined && data.tax !== null) {
@@ -548,7 +525,6 @@ export default function InventoryPurchaseOrder() {
   const grandTotal = calculateGrandTotal()
 
   const groupedInventoryItems = useMemo(() => {
-    // Always show all inventory items, even when PDF is uploaded
     // Create a map of categoryId to category name
     const categoryMap = new Map<string, string>()
     categories.forEach((cat) => categoryMap.set(cat.id, cat.name))
@@ -561,12 +537,27 @@ export default function InventoryPurchaseOrder() {
     )
 
     // Filter items by selected store's preferred store field
-    // BUT also include items that are in rowData (matched from PDF or have data)
-    const filteredItems = globalStore
+    // If a supplier is selected:
+    //   - Show items that match the supplier's preferredStore (case-insensitive, trimmed)
+    //   - Also show items that are in rowData if they were matched from PDF (hasUploadedPDF is true)
+    //     This allows PDF-matched items to show even if they don't match the supplier
+    // If no supplier is selected, show all items
+    const filteredItems = globalStore && globalStore.trim()
       ? inventoryItems.filter(
-          (item) => 
-            item.preferredStore?.toLowerCase() === globalStore.toLowerCase() ||
-            itemsInRowData.has(item.id)
+          (item) => {
+            const itemPreferredStore = item.preferredStore?.toLowerCase().trim() || ''
+            const selectedStore = globalStore.toLowerCase().trim()
+            // Show item if it matches the selected supplier
+            if (itemPreferredStore && itemPreferredStore === selectedStore) {
+              return true
+            }
+            // Also show items that are in rowData if they were matched from PDF
+            // (this allows PDF-matched items to show even if they don't match the supplier)
+            if (hasUploadedPDF && itemsInRowData.has(item.id)) {
+              return true
+            }
+            return false
+          }
         )
       : inventoryItems
 
